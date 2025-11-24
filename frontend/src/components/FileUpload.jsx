@@ -19,20 +19,34 @@ const FileUpload = ({ onUploadSuccess }) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
     }
   };
 
   const handleChange = (e) => {
     e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(e.target.files);
+    }
+  };
+
+  const handleFiles = async (files) => {
+    setUploading(true);
+
+    try {
+      // Upload all files
+      const uploadPromises = Array.from(files).map(file => handleFile(file));
+      await Promise.all(uploadPromises);
+      alert(`Successfully uploaded ${files.length} file(s)!`);
+    } catch (error) {
+      alert("Error uploading files: " + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   const handleFile = async (file) => {
-    setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
 
@@ -44,13 +58,12 @@ const FileUpload = ({ onUploadSuccess }) => {
       const data = await response.json();
       if (response.ok) {
         onUploadSuccess(data);
+        return data;
       } else {
-        alert("Upload failed: " + data.detail);
+        throw new Error(data.detail || "Upload failed");
       }
     } catch (error) {
-      alert("Error uploading file: " + error.message);
-    } finally {
-      setUploading(false);
+      throw error;
     }
   };
 
@@ -62,12 +75,11 @@ const FileUpload = ({ onUploadSuccess }) => {
         id="file-upload"
         onChange={handleChange}
         accept=".csv,.xlsx,.xls,.pdf"
+        multiple
       />
 
       <div
-        className={`relative group cursor-pointer transition-all duration-300 ${dragActive
-          ? "scale-[1.02]"
-          : "hover:scale-[1.01]"
+        className={`relative group cursor-pointer transition-all duration-300 ${dragActive ? "scale-[1.02]" : "hover:scale-[1.01]"
           }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -95,11 +107,14 @@ const FileUpload = ({ onUploadSuccess }) => {
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-white">
-                  {uploading ? "Uploading..." : "Upload your dataset"}
-                </h3>
-                <p className="text-slate-400 max-w-sm mx-auto">
-                  Drag and drop your CSV, Excel, or PDF file here, or click to browse.
+                <p className="text-lg text-white font-medium">
+                  {uploading ? "Uploading files..." : dragActive ? "Drop your files here" : "Upload your files to get started"}
+                </p>
+                <p className="text-sm text-slate-400">
+                  Drag & drop files here, or click to browse
+                </p>
+                <p className="text-xs text-slate-500 mt-2">
+                  Supports CSV, Excel, PDF • Multiple files allowed
                 </p>
               </div>
 

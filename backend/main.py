@@ -20,7 +20,7 @@ app = FastAPI(title="SortifyAI Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://sortify-ai.vercel.app/"],
+    allow_origins=["http://localhost:3000", "https://sortify-ai.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { CloudArrowUpIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import axios from 'axios';
 
 const FileUpload = ({ onUploadSuccess }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -33,16 +35,18 @@ const FileUpload = ({ onUploadSuccess }) => {
 
   const handleFiles = async (files) => {
     setUploading(true);
+    setProgress(0);
 
     try {
       // Upload all files
       const uploadPromises = Array.from(files).map(file => handleFile(file));
       await Promise.all(uploadPromises);
-      alert(`Successfully uploaded ${files.length} file(s)!`);
+      // alert(`Successfully uploaded ${files.length} file(s)!`); // Removed alert for smoother UX
     } catch (error) {
       alert("Error uploading files: " + error.message);
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -52,19 +56,23 @@ const FileUpload = ({ onUploadSuccess }) => {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/upload`, {
-        method: "POST",
-        body: formData,
+
+      const response = await axios.post(`${apiUrl}/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setProgress(percentCompleted);
+        }
       });
-      const data = await response.json();
-      if (response.ok) {
-        onUploadSuccess(data);
-        return data;
-      } else {
-        throw new Error(data.detail || "Upload failed");
+
+      if (response.data) {
+        onUploadSuccess(response.data);
+        return response.data;
       }
     } catch (error) {
-      throw error;
+      throw new Error(error.response?.data?.detail || error.message || "Upload failed");
     }
   };
 
@@ -107,16 +115,31 @@ const FileUpload = ({ onUploadSuccess }) => {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 w-full max-w-md mx-auto">
                 <p className="text-lg text-white font-medium">
                   {uploading ? "Uploading files..." : dragActive ? "Drop your files here" : "Upload your files to get started"}
                 </p>
-                <p className="text-sm text-slate-400">
-                  Drag & drop files here, or click to browse
-                </p>
-                <p className="text-xs text-slate-500 mt-2">
-                  Supports CSV, Excel, PDF • Multiple files allowed
-                </p>
+
+                {uploading && (
+                  <div className="w-full bg-brand-secondary/30 rounded-full h-2.5 mt-4 overflow-hidden">
+                    <div
+                      className="bg-brand-primary h-2.5 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                    <p className="text-xs text-brand-primary mt-2 font-mono">{progress}%</p>
+                  </div>
+                )}
+
+                {!uploading && (
+                  <>
+                    <p className="text-sm text-slate-400">
+                      Drag & drop files here, or click to browse
+                    </p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Supports CSV, Excel, PDF • Multiple files allowed
+                    </p>
+                  </>
+                )}
               </div>
 
               {!uploading && (

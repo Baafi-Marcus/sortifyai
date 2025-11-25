@@ -119,23 +119,29 @@ const ChatInterface = ({ fileId, onGroupData, onMessage, totalRows }) => {
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         {msg.role !== "user" && (
-                            <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center shrink-0 border border-brand-primary/20">
+                            <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center shrink-0 border border-brand-primary/20 mt-1">
                                 <SparklesIcon className="w-5 h-5 text-brand-primary" />
                             </div>
                         )}
 
-                        <div className={`max-w-[80%] space-y-1 ${msg.role === "user" ? "text-right" : "text-left"}`}>
-                            <div className={`text-sm font-medium ${msg.role === "user" ? "text-slate-300" : "text-brand-primary"}`}>
+                        <div className={`max-w-[80%] space-y-1 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                            <div className={`text-xs font-medium mb-1 px-1 ${msg.role === "user" ? "text-slate-400 text-right" : "text-brand-primary text-left"}`}>
                                 {msg.role === "user" ? "You" : "SortifyAI"}
                             </div>
-                            <div className={`text-base leading-relaxed text-slate-200 whitespace-pre-line ${msg.role === "error" ? "text-red-400" : ""
-                                }`}>
+                            <div className={`
+                                p-4 rounded-2xl text-base leading-relaxed whitespace-pre-line shadow-sm
+                                ${msg.role === "user"
+                                    ? "bg-brand-primary text-brand-dark rounded-tr-none"
+                                    : "bg-white/10 text-slate-200 rounded-tl-none border border-white/5"
+                                }
+                                ${msg.role === "error" ? "bg-red-500/10 text-red-400 border-red-500/20" : ""}
+                            `}>
                                 {msg.content}
                             </div>
                         </div>
 
                         {msg.role === "user" && (
-                            <div className="w-8 h-8 rounded-full bg-brand-secondary/50 flex items-center justify-center shrink-0 border border-white/10">
+                            <div className="w-8 h-8 rounded-full bg-brand-secondary/50 flex items-center justify-center shrink-0 border border-white/10 mt-1">
                                 <UserCircleIcon className="w-5 h-5 text-slate-300" />
                             </div>
                         )}

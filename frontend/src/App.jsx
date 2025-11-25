@@ -32,10 +32,23 @@ const App = () => {
     }
   };
 
-  // Auto-open canvas when groups are created on desktop
+  // Auto-open canvas and trigger feedback when groups are created
   React.useEffect(() => {
-    if (groups.length > 0 && window.innerWidth >= 768) {
-      setCanvasOpen(true);
+    if (groups.length > 0) {
+      // Open canvas on desktop
+      if (window.innerWidth >= 768) {
+        setCanvasOpen(true);
+      }
+
+      // Trigger feedback if first time (once per user)
+      const hasRequestedFeedback = localStorage.getItem('sortify_feedback_requested');
+      if (!hasRequestedFeedback) {
+        // Small delay to let user see results first
+        setTimeout(() => {
+          setFeedbackOpen(true);
+          localStorage.setItem('sortify_feedback_requested', 'true');
+        }, 3000);
+      }
     }
   }, [groups]);
 

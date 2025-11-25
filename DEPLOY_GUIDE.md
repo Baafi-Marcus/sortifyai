@@ -37,7 +37,7 @@ git commit -m "Initial commit"
 git branch -M main
 
 # Connect to GitHub (replace YOUR_USERNAME)
-git remote add origin https://github.com/YOUR_USERNAME/sortifyai.git
+git remote add origin https://github.com/BAAFI_MARCUS/sortifyai.git
 git push -u origin main
 ```
 
@@ -79,7 +79,7 @@ git push -u origin main
 
 6. **Wait 3-5 minutes** for deployment to complete
 
-7. **Copy your backend URL** (e.g., `https://sortifyai-backend.onrender.com`)
+7. **Copy your backend URL** (e.g., ` https://sortifyai-backend.onrender.com`)
 
 **✅ Backend is live!**
 

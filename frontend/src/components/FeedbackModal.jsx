@@ -32,7 +32,8 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 
         setSubmitting(true);
         try {
-            const response = await fetch('http://localhost:8000/feedback', {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${apiUrl}/feedback`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

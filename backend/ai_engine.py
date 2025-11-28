@@ -9,7 +9,14 @@ load_dotenv()
 
 class AIGroupingAgent:
     def __init__(self):
-        # Load keys from environment
+        self.current_key_index = 0
+        self._load_keys()
+        self.model = "openai/gpt-4o" # Using GPT-4o via OpenRouter
+        self._initialize_client()
+
+    def _load_keys(self):
+        """Reloads API keys from environment variables."""
+        load_dotenv(override=True)
         keys_str = os.getenv("OPENROUTER_API_KEYS") or os.getenv("OPENROUTER_API_KEY")
         
         if not keys_str:
@@ -18,11 +25,11 @@ class AIGroupingAgent:
         else:
             # Split by comma and strip whitespace
             self.api_keys = [k.strip() for k in keys_str.split(',') if k.strip()]
-            print(f"✓ Loaded {len(self.api_keys)} API key(s) for rotation")
+            print(f"✓ Reloaded {len(self.api_keys)} API key(s)")
             
-        self.current_key_index = 0
-        self.model = "openai/gpt-4o" # Using GPT-4o via OpenRouter
-        self._initialize_client()
+        # Ensure current index is valid
+        if self.api_keys and self.current_key_index >= len(self.api_keys):
+            self.current_key_index = 0
 
     def _initialize_client(self):
         """Initializes the OpenAI client with the current key."""
@@ -127,6 +134,9 @@ class AIGroupingAgent:
         
         Return the GROUPING RULES (not the actual data). The backend will apply these rules to all rows.
         """
+
+        # Reload keys dynamically to pick up any changes
+        self._load_keys()
 
         # Track which keys we've tried to avoid retrying the same key
         tried_keys = set()

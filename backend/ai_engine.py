@@ -79,10 +79,21 @@ class AIGroupingAgent:
         Returns a string summary.
         """
         if isinstance(data, pd.DataFrame):
-            columns = data.columns.tolist()
-            sample = data.head(10).to_string()
+            # Get types for better context
+            dtypes = {col: str(dtype) for col, dtype in data.dtypes.items()}
+            
+            # Create a truncated sample (3 rows only)
+            sample_df = data.head(3).copy()
+            
+            # Truncate long strings in sample to save tokens
+            for col in sample_df.select_dtypes(include=['object']):
+                sample_df[col] = sample_df[col].apply(
+                    lambda x: (str(x)[:100] + '...') if isinstance(x, str) and len(str(x)) > 100 else x
+                )
+            
+            sample = sample_df.to_string()
             total_rows = len(data)
-            return f"TOTAL ROWS IN DATASET: {total_rows}\nColumns: {columns}\nSample Data (first 10 rows):\n{sample}"
+            return f"ROWS: {total_rows}\nCOLS: {dtypes}\nSAMPLE (3 rows):\n{sample}"
         else:
             # For text data (PDF)
             return f"Text Data Sample: {data[:500]}..."
@@ -93,51 +104,33 @@ class AIGroupingAgent:
         Returns a JSON string with rules, not actual data.
         """
         system_prompt = """
-        You are an AI data analyst.
-        Your goal is to analyze user instructions and return GROUPING RULES, not the actual data.
+        You are an AI data analyst. Analyze user instructions and return GROUPING RULES in JSON.
         
-        Return a JSON object with the following structure:
+        JSON STRUCTURE:
         {
             "groups": [
                 {
                     "name": "Group Name",
                     "description": "Brief description",
-                    "rules": {
-                        "column_name": {"operator": value},
-                        "another_column": {"operator": value}
-                    },
+                    "rules": { "col_name": {"operator": value} },
                     "is_catchall": false,
                     "min_capacity": null,
                     "max_capacity": null
                 }
             ],
-            "explanation": "Why you created these rules"
+            "explanation": "Reasoning"
         }
         
-        RULES FORMAT:
-        - Use column names from the data summary
+        RULES:
         - Operators: ">=", ">", "<=", "<", "==", "!="
-        - Example: {"Math": {">=": 50}, "English": {">=": 10, "<": 50}}
-        - For ranges, use multiple operators on same column
-        - For catch-all groups (e.g., "Class C", "Other"), set "is_catchall": true with no rules
+        - Example: {"Math": {">=": 50}}
+        - Catch-all: "is_catchall": true (no rules)
+        - Capacity: Set "min_capacity"/"max_capacity" if specified.
         
-        CAPACITY-BASED GROUPING:
-        - If user specifies max capacity (e.g., "max 50 rows per group"), set "max_capacity": 50
-        - If user specifies min capacity (e.g., "min 10 rows per group"), set "min_capacity": 10
-        - Both can be specified together (e.g., "between 10 and 50 rows per group")
-        - The backend will automatically split groups that exceed max_capacity
-        - The backend will merge or flag groups that are below min_capacity
-        - Overflow groups will be named "Group Name - Overflow 1", "Group Name - Overflow 2", etc.
-        - If no capacity is specified, set both to null
-        
-        CRITICAL INSTRUCTIONS:
-        1. Create rules that will cover ALL rows when applied
-        2. The last group should typically be a catch-all (is_catchall: true) for remaining rows
-        3. Rules should be mutually exclusive where possible
-        4. Return ONLY the rules - the backend will apply them to all rows
-        5. If user mentions capacity/limit/minimum/maximum, include it in the appropriate field
-        
-        DO NOT return actual data - only return the grouping logic/rules.
+        CRITICAL:
+        1. Cover ALL rows.
+        2. Last group should be catch-all.
+        3. Return ONLY valid JSON rules.
         """
 
         user_message = f"""

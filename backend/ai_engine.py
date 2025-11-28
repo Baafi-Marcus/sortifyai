@@ -18,6 +18,7 @@ class AIGroupingAgent:
         else:
             # Split by comma and strip whitespace
             self.api_keys = [k.strip() for k in keys_str.split(',') if k.strip()]
+            print(f"✓ Loaded {len(self.api_keys)} API key(s) for rotation")
             
         self.current_key_index = 0
         self.model = "openai/gpt-4o" # Using GPT-4o via OpenRouter
@@ -44,8 +45,10 @@ class AIGroupingAgent:
         if not self.api_keys or len(self.api_keys) <= 1:
             return False
             
+        old_index = self.current_key_index
         self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
         self._initialize_client()
+        print(f"🔄 Rotated from key {old_index} to key {self.current_key_index}")
         return True
 
     def analyze_structure(self, data: Union[pd.DataFrame, List[str]]) -> str:
@@ -125,11 +128,27 @@ class AIGroupingAgent:
         Return the GROUPING RULES (not the actual data). The backend will apply these rules to all rows.
         """
 
+        # Track which keys we've tried to avoid retrying the same key
+        tried_keys = set()
         max_retries = len(self.api_keys) if self.api_keys else 1
-        attempts = 0
         
-        while attempts < max_retries:
+        print(f"🔑 Starting API request with {max_retries} key(s) available")
+        
+        for attempt in range(max_retries):
+            current_key_id = self.current_key_index
+            
+            # Check if we've already tried this key
+            if current_key_id in tried_keys:
+                print(f"⚠️ Key {current_key_id} already tried, rotating...")
+                if not self._rotate_key():
+                    break
+                current_key_id = self.current_key_index
+            
+            # Mark this key as tried
+            tried_keys.add(current_key_id)
+            
             try:
+                print(f"📡 Attempt {attempt + 1}/{max_retries} using key {current_key_id}")
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
@@ -139,20 +158,30 @@ class AIGroupingAgent:
                     response_format={"type": "json_object"},
                     max_tokens=1500  # Rules are much smaller than data
                 )
+                print(f"✅ Successfully generated rules using key {current_key_id}")
                 return response.choices[0].message.content
                 
             except Exception as e:
-                print(f"OpenRouter Error (Key {self.current_key_index}): {e}")
-                attempts += 1
+                error_msg = str(e)
+                print(f"❌ Error with key {current_key_id}: {error_msg[:100]}...")
                 
-                # If we have more keys to try, rotate and continue
-                if attempts < max_retries:
-                    print("Attempting to rotate API key...")
-                    if self._rotate_key():
-                        continue
-                
-                # If we're out of retries or rotation failed, return error
-                return json.dumps({"error": str(e), "groups": [], "explanation": "Failed to generate rules after trying all available keys."})
+                # If we have more attempts left, rotate to the next key
+                if attempt < max_retries - 1:
+                    print(f"🔄 Trying next API key...")
+                    if not self._rotate_key():
+                        print("⚠️ No more keys to rotate to")
+                        break
+                else:
+                    print(f"❌ All {max_retries} key(s) exhausted")
+        
+        # If we get here, all keys failed
+        error_response = {
+            "error": "All API keys exhausted or failed",
+            "groups": [],
+            "explanation": f"Failed to generate rules after trying all {len(tried_keys)} available key(s)."
+        }
+        print(f"💥 Returning error response after trying {len(tried_keys)} key(s)")
+        return json.dumps(error_response)
 
     def apply_rules_to_data(self, data: pd.DataFrame, rules_json: str) -> List[Dict[str, Any]]:
         """

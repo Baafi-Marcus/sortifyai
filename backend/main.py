@@ -166,6 +166,15 @@ async def group_data(
             
         rules = json.loads(json_str)
         
+        # Check if the AI returned an error
+        if "error" in rules:
+            error_msg = rules.get("explanation", "Failed to generate grouping rules")
+            print(f"AI Error: {rules.get('error')}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"AI grouping failed: {error_msg}"
+            )
+        
         # Apply rules to ALL rows in the dataset
         if isinstance(data, pd.DataFrame):
             groups_with_data = ai_agent.apply_rules_to_data(data, json_str)

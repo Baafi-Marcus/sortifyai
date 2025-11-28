@@ -17,14 +17,29 @@ class AIGroupingAgent:
     def _load_keys(self):
         """Reloads API keys from environment variables."""
         load_dotenv(override=True)
-        keys_str = os.getenv("OPENROUTER_API_KEYS") or os.getenv("OPENROUTER_API_KEY")
         
-        if not keys_str:
+        found_keys = []
+        
+        # 1. Check for comma-separated keys in main variables
+        keys_str = os.getenv("OPENROUTER_API_KEYS") or os.getenv("OPENROUTER_API_KEY")
+        if keys_str:
+            # Handle potential newlines or weird spacing by replacing newlines with commas
+            keys_str = keys_str.replace('\n', ',')
+            found_keys.extend([k.strip() for k in keys_str.split(',') if k.strip()])
+
+        # 2. Check for indexed keys (OPENROUTER_API_KEY_1, _2, etc.)
+        # We'll check a reasonable range, say 1 to 20
+        for i in range(1, 21):
+            key = os.getenv(f"OPENROUTER_API_KEY_{i}")
+            if key:
+                found_keys.append(key.strip())
+        
+        # Deduplicate while preserving order
+        self.api_keys = list(dict.fromkeys(found_keys))
+        
+        if not self.api_keys:
             print("WARNING: No OPENROUTER_API_KEY found.")
-            self.api_keys = []
         else:
-            # Split by comma and strip whitespace
-            self.api_keys = [k.strip() for k in keys_str.split(',') if k.strip()]
             print(f"✓ Reloaded {len(self.api_keys)} API key(s)")
             
         # Ensure current index is valid

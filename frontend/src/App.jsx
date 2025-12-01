@@ -127,7 +127,7 @@ const App = () => {
           {/* Footer */}
           <div className="mt-24 pt-8 border-t border-white/10 text-center opacity-0-init animate-fadeIn delay-800 relative z-10">
             <p className="text-sm text-slate-400">
-              Developed by <span className="text-brand-primary font-semibold hover:text-brand-accent transition-colors cursor-default">BAAFI O. MARCUS</span>
+              Developed by <a href="https://personal-portfolio-three-woad-31.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-semibold hover:text-brand-accent transition-colors">BAAFI O. MARCUS</a>
             </p>
           </div>
         </main>

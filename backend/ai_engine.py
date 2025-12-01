@@ -11,7 +11,7 @@ class AIGroupingAgent:
     def __init__(self):
         self.current_key_index = 0
         self._load_keys()
-        self.model = "openai/gpt-4o" # Using GPT-4o via OpenRouter
+        self.model = "openai/gpt-4o-mini" # Using GPT-4o-mini for cost efficiency
         self._initialize_client()
 
     def _load_keys(self):
@@ -174,7 +174,7 @@ class AIGroupingAgent:
                         {"role": "user", "content": user_message}
                     ],
                     response_format={"type": "json_object"},
-                    max_tokens=1500  # Rules are much smaller than data
+                    max_tokens=1000  # Reduced from 1500 to save tokens
                 )
                 print(f"✅ Successfully generated rules using key {current_key_id}")
                 return response.choices[0].message.content

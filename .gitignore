@@ -6,4 +6,6 @@ node_modules/
 dist/
 .DS_Store
 temp_*
+*.db
+*.sqlite*
 

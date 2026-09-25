@@ -1,12 +1,41 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
-# Database setup
-DATABASE_URL = "sqlite:///./sortifyai_v2.db"
+load_dotenv()
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Database setup: Neon PostgreSQL with graceful local fallback
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    # Local fallback if DATABASE_URL is not configured
+    DATABASE_URL = "sqlite:///./sortifyai_v2.db"
+
+# Normalize postgres:// to postgresql:// for SQLAlchemy compatibility
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Configure database engine based on dialect
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, 
+        connect_args={"check_same_thread": False}
+    )
+else:
+    # Neon Serverless PostgreSQL Configuration
+    # pool_pre_ping=True automatically tests connections and reconnects if Neon compute was sleeping
+    # pool_recycle=300 recycles connections after 5 minutes to prevent stale idle sockets
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=300,
+        pool_pre_ping=True
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

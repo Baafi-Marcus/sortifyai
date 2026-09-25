@@ -68,12 +68,14 @@ git push -u origin main
 
 4. Click **"Advanced"** → Add Environment Variables:
    ```
+   DATABASE_URL = postgresql://[user]:[password]@[endpoint].neon.tech/[dbname]?sslmode=require
    OPENROUTER_API_KEYS = your-keys-here (comma-separated)
-   TWILIO_ACCOUNT_SID = your-sid
-   TWILIO_AUTH_TOKEN = your-token
-   TWILIO_WHATSAPP_FROM = whatsapp:+14155238886
-   TWILIO_WHATSAPP_TO = whatsapp:+your-number
+   TWILIO_ACCOUNT_SID = your-sid (optional)
+   TWILIO_AUTH_TOKEN = your-token (optional)
+   TWILIO_WHATSAPP_FROM = whatsapp:+14155238886 (optional)
+   TWILIO_WHATSAPP_TO = whatsapp:+your-number (optional)
    ```
+   *(Get your free PostgreSQL database instantly at [neon.tech](https://neon.tech))*
 
 5. Click **"Create Web Service"**
 

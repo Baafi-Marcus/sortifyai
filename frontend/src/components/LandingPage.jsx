@@ -11,7 +11,7 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
-const LandingPage = ({ onGetStarted, onTrySample, serverStatus }) => {
+const LandingPage = ({ onGetStarted, onTrySample, serverStatus, onOpenDeveloperApi }) => {
   return (
     <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30">
       {/* Top Navigation */}
@@ -41,6 +41,13 @@ const LandingPage = ({ onGetStarted, onTrySample, serverStatus }) => {
                   <span>Server ready</span>
                 </div>
               )}
+
+              <button
+                onClick={onOpenDeveloperApi}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/25 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+              >
+                <span>Developers & API</span>
+              </button>
 
               <button 
                 onClick={onGetStarted} 
@@ -265,7 +272,7 @@ const LandingPage = ({ onGetStarted, onTrySample, serverStatus }) => {
         {/* Footer */}
         <div className="mt-20 pt-8 border-t border-white/10 text-center">
           <p className="text-sm text-slate-500">
-            SortifyAI • Intelligent Student Allocation & Grouping Engine • Developed by{' '}
+            SortifyAI • Intelligent Allocation & Optimization Platform • Developed by{' '}
             <a 
               href="https://personal-portfolio-three-woad-31.vercel.app/" 
               target="_blank" 
@@ -274,6 +281,13 @@ const LandingPage = ({ onGetStarted, onTrySample, serverStatus }) => {
             >
               BAAFI O. MARCUS
             </a>
+            {' '}•{' '}
+            <button 
+              onClick={onOpenDeveloperApi}
+              className="text-slate-400 hover:text-cyan-300 underline font-medium"
+            >
+              API Docs & SDKs
+            </button>
           </p>
         </div>
       </main>

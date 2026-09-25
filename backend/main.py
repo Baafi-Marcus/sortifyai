@@ -16,7 +16,13 @@ from ai_engine import AIGroupingAgent
 from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback
 from whatsapp_service import send_feedback_notification
 
-app = FastAPI(title="SortifyAI Backend")
+app = FastAPI(
+    title="SortifyAI Platform Engine API",
+    description="Intelligent AI-Powered Allocation, Grouping, and Optimization Engine for education, business, and enterprise workflows.",
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 app.add_middleware(
     CORSMiddleware,

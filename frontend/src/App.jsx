@@ -9,13 +9,15 @@ import ResultsStudio from './components/ResultsStudio';
 import ExportModal from './components/ExportModal';
 import CheckGroupsView from './components/CheckGroupsView';
 import FeedbackModal from './components/FeedbackModal';
+import DeveloperApiModal from './components/DeveloperApiModal';
 import { generateSampleStudents } from './utils/sampleData';
 import { 
   ArrowPathIcon, 
   ChatBubbleBottomCenterTextIcon, 
   SparklesIcon, 
   DocumentChartBarIcon, 
-  CheckCircleIcon 
+  CheckCircleIcon,
+  CodeBracketIcon
 } from '@heroicons/react/24/outline';
 
 const App = () => {
@@ -35,6 +37,7 @@ const App = () => {
   const [auditReport, setAuditReport] = useState(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [developerApiOpen, setDeveloperApiOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // Server Keep-Alive / Pre-warm state (Method 2)
@@ -342,6 +345,15 @@ const App = () => {
               )}
 
               <button
+                onClick={() => setDeveloperApiOpen(true)}
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 hover:text-white transition-colors border border-white/5"
+                title="SortifyAI Engine API Docs & SDKs"
+              >
+                <CodeBracketIcon className="w-4 h-4 text-cyan-400" />
+                <span className="hidden md:inline">API & Docs</span>
+              </button>
+
+              <button
                 onClick={() => setFeedbackOpen(true)}
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
                 title="Give Feedback"
@@ -361,6 +373,7 @@ const App = () => {
             onGetStarted={() => setCurrentView('upload')}
             onTrySample={handleTrySample}
             serverStatus={serverStatus}
+            onOpenDeveloperApi={() => setDeveloperApiOpen(true)}
           />
         )}
 
@@ -460,6 +473,12 @@ const App = () => {
       <FeedbackModal
         isOpen={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
+      />
+
+      {/* Modal: Developer API Explorer & SDKs */}
+      <DeveloperApiModal
+        isOpen={developerApiOpen}
+        onClose={() => setDeveloperApiOpen(false)}
       />
     </div>
   );

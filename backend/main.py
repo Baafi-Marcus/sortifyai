@@ -20,7 +20,15 @@ app = FastAPI(title="SortifyAI Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://sortify-ai.vercel.app"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://sortify-ai.vercel.app",
+        "https://sortifyai.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,6 +92,14 @@ def process_file_background(file_id: str, file_path: str):
             
     except Exception as e:
         print(f"Error in background processing for {file_id}: {e}")
+        try:
+            db_file = db.query(DBFile).filter(DBFile.file_id == file_id).first()
+            if db_file:
+                db_file.data_summary = f"Error processing file: {str(e)}"
+                db_file.processed = True
+                db.commit()
+        except Exception as db_err:
+            print(f"Failed to record processing error for {file_id}: {db_err}")
     finally:
         db.close()
 

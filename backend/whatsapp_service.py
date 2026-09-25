@@ -14,6 +14,11 @@ def send_feedback_notification(name, email, rating, message):
     """
     Send WhatsApp notification when feedback is received
     """
+    # Guard against missing or placeholder credentials
+    if not ACCOUNT_SID or not AUTH_TOKEN or ACCOUNT_SID in ["your-sid", "your_account_sid"] or not WHATSAPP_FROM or not WHATSAPP_TO:
+        print("Twilio credentials not configured or using placeholders. Skipping WhatsApp notification.")
+        return False
+
     try:
         client = Client(ACCOUNT_SID, AUTH_TOKEN)
         

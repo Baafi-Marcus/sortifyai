@@ -10,6 +10,8 @@ load_dotenv()
 class AIGroupingAgent:
     def __init__(self):
         self.current_key_index = 0
+        self.client = None
+        self.api_keys = []
         self._load_keys()
         self.model = "openai/gpt-4o-mini" # Using GPT-4o-mini for cost efficiency
         self._initialize_client()
@@ -146,6 +148,15 @@ class AIGroupingAgent:
         # Reload keys dynamically to pick up any changes
         self._load_keys()
 
+        if not self.api_keys or not self.client:
+            error_response = {
+                "error": "No API keys configured",
+                "groups": [],
+                "explanation": "No OpenRouter API key found. Please configure OPENROUTER_API_KEYS in your environment."
+            }
+            print("❌ No API key available for interpret_instructions")
+            return json.dumps(error_response)
+
         # Track which keys we've tried to avoid retrying the same key
         tried_keys = set()
         max_retries = len(self.api_keys) if self.api_keys else 1
@@ -201,6 +212,38 @@ class AIGroupingAgent:
         print(f"💥 Returning error response after trying {len(tried_keys)} key(s)")
         return json.dumps(error_response)
 
+    @staticmethod
+    def _safe_compare(value: Any, operator: str, threshold: Any) -> bool:
+        """Safely compares values across types (e.g. numeric strings, integers, floats, text)."""
+        if value is None or pd.isna(value):
+            return False
+
+        # Attempt numeric comparison first
+        try:
+            clean_val = str(value).replace(',', '').replace('$', '').strip()
+            clean_thresh = str(threshold).replace(',', '').replace('$', '').strip()
+            v_num = float(clean_val)
+            t_num = float(clean_thresh)
+            if operator == ">=": return v_num >= t_num
+            if operator == ">": return v_num > t_num
+            if operator == "<=": return v_num <= t_num
+            if operator == "<": return v_num < t_num
+            if operator == "==": return v_num == t_num
+            if operator == "!=": return v_num != t_num
+        except (ValueError, TypeError):
+            pass
+
+        # String-based comparison fallback
+        str_val = str(value).strip().lower()
+        str_thresh = str(threshold).strip().lower()
+        if operator == "==": return str_val == str_thresh
+        if operator == "!=": return str_val != str_thresh
+        if operator == ">=": return str_val >= str_thresh
+        if operator == ">": return str_val > str_thresh
+        if operator == "<=": return str_val <= str_thresh
+        if operator == "<": return str_val < str_thresh
+        return False
+
     def apply_rules_to_data(self, data: pd.DataFrame, rules_json: str) -> List[Dict[str, Any]]:
         """
         Applies grouping rules to all rows in the dataset.
@@ -242,24 +285,12 @@ class AIGroupingAgent:
                             
                             value = row[column]
                             for operator, threshold in conditions.items():
-                                if operator == ">=":
-                                    if not (value >= threshold):
-                                        matches = False
-                                elif operator == ">":
-                                    if not (value > threshold):
-                                        matches = False
-                                elif operator == "<=":
-                                    if not (value <= threshold):
-                                        matches = False
-                                elif operator == "<":
-                                    if not (value < threshold):
-                                        matches = False
-                                elif operator == "==":
-                                    if not (value == threshold):
-                                        matches = False
-                                elif operator == "!=":
-                                    if not (value != threshold):
-                                        matches = False
+                                if not self._safe_compare(value, operator, threshold):
+                                    matches = False
+                                    break
+                            
+                            if not matches:
+                                break
                         
                         if matches:
                             row_dict = row.to_dict()

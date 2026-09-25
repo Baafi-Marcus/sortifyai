@@ -31,6 +31,34 @@ const GroupingPrompt = ({
     "I need 8 groups. Each group should have students from different programmes."
   ];
 
+  const allocationTemplates = [
+    {
+      name: "Classroom Pods",
+      icon: "🎓",
+      prompt: "Create 8 groups. Balance gender 50/50 and ensure each group has a mix of Science and Arts students."
+    },
+    {
+      name: "Exam Hall Seating",
+      icon: "🪑",
+      prompt: "Allocate students across 6 exam halls. Alternate programmes and maintain maximum 30 students per hall to prevent adjacent peers."
+    },
+    {
+      name: "House / Hostel Allocation",
+      icon: "🏠",
+      prompt: "Allocate students into 4 sports houses with strictly equal gender numbers, balanced athletic scores, and mixed classes."
+    },
+    {
+      name: "Team & Hackathon Formation",
+      icon: "👥",
+      prompt: "Create 12 balanced project teams of 5 students each. Ensure balanced academic scores and diverse skill tracks."
+    },
+    {
+      name: "Staff Duty Rosters",
+      icon: "💼",
+      prompt: "Allocate staff across 5 shift duty teams with balanced senior/junior experience levels."
+    }
+  ];
+
   const handleSelectSuggested = (prompt) => {
     setPromptText(prompt);
   };
@@ -122,6 +150,29 @@ const GroupingPrompt = ({
                 placeholder="e.g. Create 8 balanced groups. Balance male and female count in each group, and distribute Science and Arts students evenly."
                 className="w-full rounded-2xl bg-brand-dark/70 border border-white/15 px-5 py-4 text-white text-base placeholder-slate-500 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 resize-none transition-all"
               />
+            </div>
+
+            {/* Point 20: Allocation Use Case Templates */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider font-bold text-brand-primary">
+                  Allocation Templates (Point 20)
+                </span>
+                <span className="text-[11px] text-slate-500">Click to apply domain recipe</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {allocationTemplates.map((tmpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectSuggested(tmpl.prompt)}
+                    className="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 hover:border-brand-primary/50 hover:bg-brand-primary/10 text-xs text-slate-200 transition-all flex items-center gap-1.5"
+                  >
+                    <span>{tmpl.icon}</span>
+                    <span className="font-medium">{tmpl.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Suggested Prompts (Point 3) */}

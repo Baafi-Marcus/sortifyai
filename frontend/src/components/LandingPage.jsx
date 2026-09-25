@@ -176,6 +176,82 @@ const LandingPage = ({ onGetStarted, onTrySample, serverStatus }) => {
           </div>
         </div>
 
+        {/* Point 20: AI-Powered Allocation & Grouping Vision */}
+        <div className="mt-28 space-y-8">
+          <div className="text-center space-y-3 max-w-2xl mx-auto">
+            <span className="text-xs uppercase tracking-wider font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-3 py-1 rounded-full">
+              The Bigger Vision (Point 20)
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              One Allocation Engine. Endless Domains.
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              SortifyAI is not just an Excel tool—it is a constraint-based AI allocation platform engineered to distribute people, tasks, and spaces fairly across any organization.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              {
+                title: "Student & Cohort Grouping",
+                tag: "Live Today",
+                icon: "🎓",
+                desc: "Balanced study pods, mixed-ability classes, lab benches, and project teams."
+              },
+              {
+                title: "Exam Seating & Hall Allocation",
+                tag: "Universal Engine",
+                icon: "🪑",
+                desc: "Interleave classes and streams across halls to eliminate cheating while respecting room capacities."
+              },
+              {
+                title: "House & Dormitory Room Allocation",
+                tag: "Universal Engine",
+                icon: "🏠",
+                desc: "Assign students to sports houses (Aggrey, Fraser, etc.) or dorm rooms with equal athletic and gender balance."
+              },
+              {
+                title: "Project & Hackathon Teams",
+                tag: "Universal Engine",
+                icon: "👥",
+                desc: "Pair complementary skills (frontend, backend, design, business) into high-performing teams."
+              },
+              {
+                title: "Staff Scheduling & Duty Rosters",
+                tag: "Universal Engine",
+                icon: "💼",
+                desc: "Fairly distribute weekend shifts, prep supervision, and invigilation duties without fatigue."
+              },
+              {
+                title: "Workshop & Event Seating",
+                tag: "Universal Engine",
+                icon: "🎟️",
+                desc: "Optimize networking dinner tables to maximize cross-industry diversity and attendee connections."
+              }
+            ].map((uc, i) => (
+              <div 
+                key={i} 
+                className="p-5 rounded-2xl bg-brand-secondary/10 border border-white/5 hover:border-brand-primary/30 hover:bg-brand-secondary/20 transition-all flex flex-col justify-between group"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{uc.icon}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 group-hover:text-cyan-300 transition-colors">
+                      {uc.tag}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-white text-base group-hover:text-cyan-300 transition-colors">
+                    {uc.title}
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    {uc.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Privacy & Trust Assurance */}
         <div className="mt-16 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-slate-400">

@@ -242,3 +242,27 @@
         animation-delay: 4s;
     }
 }
+
+@media print {
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    nav, button, input, textarea, select, .no-print {
+        display: none !important;
+    }
+    table {
+        border-collapse: collapse !important;
+        width: 100% !important;
+        color: #000000 !important;
+    }
+    th, td {
+        border: 1px solid #d1d5db !important;
+        padding: 6px 10px !important;
+        color: #111827 !important;
+    }
+    th {
+        background-color: #f3f4f6 !important;
+        font-weight: 700 !important;
+    }
+}

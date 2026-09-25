@@ -26,7 +26,6 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://sortify-ai.vercel.app",
-        "https://sortifyai.vercel.app",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
@@ -49,11 +48,84 @@ class GroupingRequest(BaseModel):
     file_id: str
     instructions: str
 
+class InterpretRequest(BaseModel):
+    file_id: str
+    instructions: str
+
+class CheckGroupsRequest(BaseModel):
+    file_id: str
+    group_column: str = None
+
 class FeedbackRequest(BaseModel):
     name: str = None
     email: str = None
     rating: int
     message: str
+
+def compute_group_analytics(items: List[dict]) -> dict:
+    """Computes distribution and score analytics for a group of students."""
+    if not items:
+        return {
+            "count": 0,
+            "avg_score": None,
+            "min_score": None,
+            "max_score": None,
+            "gender_distribution": {},
+            "programme_distribution": {}
+        }
+    
+    count = len(items)
+    score_col = None
+    gender_col = None
+    prog_col = None
+    
+    first_item = items[0]
+    for key in first_item.keys():
+        k = str(key).lower()
+        if not score_col and any(w in k for w in ['score', 'mark', 'grade', 'total', 'average', 'gpa', 'point']):
+            score_col = key
+        if not gender_col and any(w in k for w in ['gender', 'sex']):
+            gender_col = key
+        if not prog_col and any(w in k for w in ['prog', 'course', 'track', 'class', 'dept', 'department', 'major', 'subject']):
+            prog_col = key
+            
+    scores = []
+    if score_col:
+        for it in items:
+            val = it.get(score_col)
+            try:
+                if val is not None and str(val).strip():
+                    scores.append(float(str(val).replace(',', '').replace('$', '').strip()))
+            except (ValueError, TypeError):
+                pass
+                
+    avg_score = round(sum(scores) / len(scores), 1) if scores else None
+    min_score = min(scores) if scores else None
+    max_score = max(scores) if scores else None
+    
+    gender_dist = {}
+    if gender_col:
+        for it in items:
+            val = str(it.get(gender_col, 'Unknown')).strip().capitalize()
+            if val.lower() in ['m', 'male', 'boy']: val = 'Male'
+            elif val.lower() in ['f', 'female', 'girl']: val = 'Female'
+            gender_dist[val] = gender_dist.get(val, 0) + 1
+            
+    prog_dist = {}
+    if prog_col:
+        for it in items:
+            val = str(it.get(prog_col, 'Other')).strip()
+            if val and val != "None":
+                prog_dist[val] = prog_dist.get(val, 0) + 1
+                
+    return {
+        "count": count,
+        "avg_score": avg_score,
+        "min_score": min_score,
+        "max_score": max_score,
+        "gender_distribution": gender_dist,
+        "programme_distribution": prog_dist
+    }
 
 @app.get("/")
 def read_root():
@@ -119,29 +191,67 @@ async def upload_file(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
+        # Immediate inspection for instant preview & health checks
+        preview = []
+        columns = []
+        issues = []
+        total_rows = 0
+        data_summary = "Processing..."
+        is_processed = False
+
+        try:
+            data = data_extractor.load_data(file_path)
+            if isinstance(data, pd.DataFrame):
+                total_rows = len(data)
+                columns = [str(c) for c in data.columns]
+                preview = data.head(8).fillna("").to_dict(orient="records")
+                
+                # Check for health issues
+                null_counts = data.isnull().sum()
+                for col, count in null_counts.items():
+                    if count > 0:
+                        issues.append(f"{count} students have missing values in '{col}'")
+                
+                id_cols = [c for c in data.columns if any(k in str(c).lower() for k in ['id', 'student', 'roll', 'index', 'number'])]
+                for col in id_cols:
+                    dupes = int(data[col].duplicated().sum())
+                    if dupes > 0:
+                        issues.append(f"{dupes} duplicate values detected in '{col}'")
+                
+                if not issues:
+                    issues.append(f"All {total_rows} records are clean and ready to process.")
+                
+                data_summary = ai_agent.analyze_structure(data)
+                is_processed = True
+        except Exception as quick_err:
+            print(f"Instant preview extraction warning: {quick_err}")
+
         # Create initial DB record
         db_file = DBFile(
             file_id=file_id,
             filename=file.filename,
             file_path=file_path,
-            total_rows=0, 
-            data_summary="Processing...",
-            processed=False
+            total_rows=total_rows, 
+            data_summary=data_summary,
+            processed=is_processed
         )
         db.add(db_file)
         db.commit()
         db.refresh(db_file)
         
-        # Schedule background processing
-        if background_tasks:
+        # Schedule background processing if needed
+        if not is_processed and background_tasks:
             background_tasks.add_task(process_file_background, file_id, file_path)
         
         return {
             "file_id": file_id,
             "filename": file.filename,
-            "summary": "Processing...",
-            "total_rows": 0,
-            "status": "processing"
+            "summary": data_summary,
+            "total_rows": total_rows,
+            "columns": columns,
+            "preview": preview,
+            "issues": issues,
+            "status": "ready" if is_processed else "processing"
         }
     except Exception as e:
         print(f"Error during upload: {e}")
@@ -228,9 +338,23 @@ async def group_data(
         db.add(grouping)
         db.commit()
         
+        # Attach analytics to each group
+        for group in groups_with_data:
+            group["analytics"] = compute_group_analytics(group.get("items", []))
+
+        # Make AI reasoning / decision criteria visible
+        instr = request.instructions.lower()
+        decision_summary = {
+            "primary": "Academic score" if any(k in instr for k in ["score", "academic", "performance", "mark"]) else "Balanced Headcount",
+            "secondary": "Programme mix" if any(k in instr for k in ["prog", "programme", "course", "subject"]) else "Dataset Distribution",
+            "balance": "Gender ratio" if any(k in instr for k in ["gender", "sex", "male", "female"]) else "Equal Group Size",
+            "group_count": len(groups_with_data)
+        }
+        
         return {
             "groups": groups_with_data,
             "explanation": rules.get("explanation", ""),
+            "decision_summary": decision_summary,
             "total_rows": total_rows,
             "grouped_rows": grouped_count,
             "all_included": grouped_count == total_rows
@@ -238,6 +362,168 @@ async def group_data(
     except Exception as e:
         print(f"Grouping error: {e}")
         raise HTTPException(status_code=500, detail=f"Grouping failed: {str(e)}")
+
+@app.get("/files/{file_id}/preview")
+async def get_file_preview(file_id: str, db: Session = Depends(get_db)):
+    """Returns columns, first rows preview, and health checks for a file."""
+    db_file = db.query(DBFile).filter(DBFile.file_id == file_id).first()
+    if not db_file or not os.path.exists(db_file.file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    try:
+        data = data_extractor.load_data(db_file.file_path)
+        if isinstance(data, pd.DataFrame):
+            columns = [str(c) for c in data.columns]
+            preview = data.head(10).fillna("").to_dict(orient="records")
+            null_counts = data.isnull().sum()
+            issues = [f"{count} students have missing '{col}'" for col, count in null_counts.items() if count > 0]
+            
+            id_cols = [c for c in data.columns if any(k in str(c).lower() for k in ['id', 'student', 'roll', 'index', 'number'])]
+            for col in id_cols:
+                dupes = int(data[col].duplicated().sum())
+                if dupes > 0:
+                    issues.append(f"{dupes} duplicate IDs in '{col}'")
+                    
+            if not issues:
+                issues.append(f"All {len(data)} records are clean and ready to process.")
+                
+            return {
+                "file_id": file_id,
+                "filename": db_file.filename,
+                "total_rows": len(data),
+                "columns": columns,
+                "preview": preview,
+                "issues": issues,
+                "processed": db_file.processed
+            }
+        return {"file_id": file_id, "filename": db_file.filename, "total_rows": 0, "columns": [], "preview": [], "issues": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/interpret")
+async def interpret_request(
+    request: InterpretRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 3: Signature 'What do you want?' interpretation & pre-confirmation.
+    Shows the user what the AI understood before generating groups.
+    """
+    db_file = db.query(DBFile).filter(DBFile.file_id == request.file_id).first()
+    if not db_file:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    instr = request.instructions.lower()
+    
+    # Extract group count
+    group_count_match = re.search(r'(\d+)\s*(?:groups?|teams?|houses?|clusters?)', instr)
+    group_count = int(group_count_match.group(1)) if group_count_match else 10
+    total_records = db_file.total_rows or 100
+    avg_per_grp = max(1, total_records // group_count)
+    
+    # Interpret bullet points
+    summary_points = [
+        f"{group_count} groups with similar group sizes (~{avg_per_grp} students each)"
+    ]
+    
+    if any(k in instr for k in ['gender', 'sex', 'male', 'female', 'boy', 'girl', 'balance']):
+        summary_points.append("Balance gender ratio evenly across all groups")
+    if any(k in instr for k in ['prog', 'programme', 'course', 'track', 'subject', 'mix', 'different']):
+        summary_points.append("Mix students from different programmes into each group")
+    if any(k in instr for k in ['score', 'performance', 'academic', 'mark', 'high', 'low', 'similar']):
+        summary_points.append("Distribute academic performance bands evenly")
+    if any(k in instr for k in ['together', 'keep', 'pair']):
+        summary_points.append("Keep designated student pairs together")
+    if any(k in instr for k in ['separate', 'apart', 'different group']):
+        summary_points.append("Ensure designated students are placed into separate groups")
+        
+    if len(summary_points) == 1:
+        summary_points.append("Balanced and diverse allocation across all detected attributes")
+
+    decision_summary = {
+        "primary": "Academic score" if any(k in instr for k in ["score", "academic", "mark"]) else "Balanced Headcount",
+        "secondary": "Programme diversity" if any(k in instr for k in ["prog", "programme", "course"]) else "Random Distribution",
+        "balance": "Gender (50/50)" if any(k in instr for k in ["gender", "sex"]) else "Equal Group Size",
+        "group_count": group_count
+    }
+    
+    return {
+        "interpreted_as": summary_points,
+        "criteria": decision_summary,
+        "group_count": group_count,
+        "ready": True
+    }
+
+@app.post("/check-groups")
+async def check_existing_groups(
+    request: CheckGroupsRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Point 19: Check My Groups - Evaluates if pre-existing groups in a spreadsheet are balanced.
+    """
+    db_file = db.query(DBFile).filter(DBFile.file_id == request.file_id).first()
+    if not db_file or not os.path.exists(db_file.file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    data = data_extractor.load_data(db_file.file_path)
+    if not isinstance(data, pd.DataFrame):
+        raise HTTPException(status_code=400, detail="Check My Groups requires tabular data (CSV/Excel)")
+        
+    group_col = request.group_column
+    if not group_col:
+        for c in data.columns:
+            if any(k in str(c).lower() for k in ['group', 'house', 'team', 'cluster', 'class', 'section']):
+                group_col = c
+                break
+                
+    if not group_col or group_col not in data.columns:
+        raise HTTPException(status_code=400, detail="Could not find an existing 'Group' column to analyze. Please specify the column name.")
+        
+    grouped = data.groupby(group_col)
+    group_sizes = grouped.size().tolist()
+    size_variance = max(group_sizes) - min(group_sizes) if group_sizes else 0
+    size_status = "Good" if size_variance <= 4 else "Needs Adjustment"
+    
+    # Check gender balance
+    gender_col = next((c for c in data.columns if any(k in str(c).lower() for k in ['gender', 'sex'])), None)
+    gender_status = "Good"
+    gender_insights = []
+    if gender_col:
+        ratios = []
+        for _, grp in grouped:
+            g_counts = grp[gender_col].value_counts(normalize=True)
+            fem_ratio = g_counts.get('Female', g_counts.get('F', 0.5))
+            ratios.append(fem_ratio)
+        if ratios and (max(ratios) - min(ratios)) > 0.25:
+            gender_status = "Needs Adjustment"
+            gender_insights.append("Gender skew detected: some groups have noticeably more male or female students.")
+        else:
+            gender_insights.append("Gender ratio is evenly balanced across groups.")
+            
+    # Check score balance
+    score_col = next((c for c in data.columns if any(k in str(c).lower() for k in ['score', 'mark', 'grade'])), None)
+    score_status = "Good"
+    if score_col:
+        means = []
+        for _, grp in grouped:
+            numeric_scores = pd.to_numeric(grp[score_col], errors='coerce').dropna()
+            if len(numeric_scores) > 0:
+                means.append(numeric_scores.mean())
+        if means and (max(means) - min(means)) > 15:
+            score_status = "Needs Adjustment"
+            
+    return {
+        "group_column": group_col,
+        "total_groups": len(grouped),
+        "total_students": len(data),
+        "report": {
+            "group_size": size_status,
+            "gender_balance": gender_status,
+            "academic_balance": score_status,
+            "insights": gender_insights or ["All groups meet baseline balance metrics."]
+        }
+    }
 
 @app.get("/files")
 async def list_files(db: Session = Depends(get_db)):

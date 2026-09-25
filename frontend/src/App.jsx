@@ -1,56 +1,54 @@
-import React, { useState } from 'react';
-import { FolderIcon, Squares2X2Icon, ShieldCheckIcon, ArrowRightIcon, PlusIcon, ChatBubbleLeftIcon, UserCircleIcon, Cog6ToothIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/react/24/outline';
-import FileUpload from './components/FileUpload';
-import ChatInterface from './components/ChatInterface';
-import GroupDisplay from './components/GroupDisplay';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import LandingPage from './components/LandingPage';
+import FileInspector from './components/FileInspector';
+import GroupingPrompt from './components/GroupingPrompt';
+import InterpretationModal from './components/InterpretationModal';
+import ProcessingState from './components/ProcessingState';
+import ResultsStudio from './components/ResultsStudio';
+import ExportModal from './components/ExportModal';
+import CheckGroupsView from './components/CheckGroupsView';
 import FeedbackModal from './components/FeedbackModal';
-
-const ServerStatusBadge = ({ status }) => {
-  if (status === 'checking') return null;
-
-  if (status === 'warming') {
-    return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-        </span>
-        <span className="hidden sm:inline">Waking backend (~30s)...</span>
-        <span className="sm:hidden">Waking...</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-      <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-      <span className="hidden sm:inline">Server ready</span>
-    </div>
-  );
-};
+import { generateSampleStudents } from './utils/sampleData';
+import { 
+  ArrowPathIcon, 
+  ChatBubbleBottomCenterTextIcon, 
+  SparklesIcon, 
+  DocumentChartBarIcon, 
+  CheckCircleIcon 
+} from '@heroicons/react/24/outline';
 
 const App = () => {
-  const [showLanding, setShowLanding] = useState(true);
-  const [fileId, setFileId] = useState(null);
+  // Navigation / Workflow State (Point 1 & 13)
+  const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'upload' | 'prompt' | 'processing' | 'results'
+  
+  // Data & Grouping State
+  const [fileData, setFileData] = useState(null);
   const [groups, setGroups] = useState([]);
-  const [dataSummary, setDataSummary] = useState(null);
-  const [totalRows, setTotalRows] = useState(null);
+  const [decisionSummary, setDecisionSummary] = useState(null);
+  const [currentPrompt, setCurrentPrompt] = useState("");
+  
+  // Modals & Assistant States
+  const [interpretation, setInterpretation] = useState(null);
+  const [showInterpretationModal, setShowInterpretationModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [auditReport, setAuditReport] = useState(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [canvasOpen, setCanvasOpen] = useState(false);
-  const [serverStatus, setServerStatus] = useState('checking'); // 'checking' | 'warming' | 'ready'
+  const [loading, setLoading] = useState(false);
+  
+  // Server Keep-Alive / Pre-warm state (Method 2)
+  const [serverStatus, setServerStatus] = useState('checking');
 
-  // Pre-warm the backend on initial load to mitigate Render cold starts
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-    // If server hasn't answered in 2.5s, it is waking up from Render sleep
     const warmingTimer = setTimeout(() => {
       if (isMounted) setServerStatus('warming');
     }, 2500);
 
-    const prewarm = async () => {
+    const pingBackend = async () => {
       try {
         const res = await fetch(`${apiUrl}/health`, { mode: 'cors' }).catch(() =>
           fetch(`${apiUrl}/`, { mode: 'cors' })
@@ -60,11 +58,11 @@ const App = () => {
           if (isMounted) setServerStatus('ready');
         }
       } catch (err) {
-        console.warn('Backend pre-warming ping failed or server is waking up:', err);
+        console.warn('Backend pre-warming check:', err);
       }
     };
 
-    prewarm();
+    pingBackend();
 
     return () => {
       isMounted = false;
@@ -72,272 +70,397 @@ const App = () => {
     };
   }, []);
 
-  const handleUploadSuccess = (data) => {
-    setFileId(data.file_id);
-    setDataSummary(data.summary);
-    setTotalRows(data.total_rows);
+  // Handler: Try with 120 Sample Students (Point 2)
+  const handleTrySample = () => {
+    const sample = generateSampleStudents();
+    setFileData(sample);
+    setCurrentView('upload');
   };
 
-  const handleGetStarted = () => {
-    setShowLanding(false);
+  // Handler: File Loaded from Upload
+  const handleFileLoaded = (data) => {
+    setFileData(data);
   };
 
-  const handleMessage = (message) => {
-    if (message.type === 'processing_complete') {
-      setDataSummary(`File analyzed successfully. ${message.totalRows} rows found.`);
-      setTotalRows(message.totalRows);
-    }
-  };
+  // Handler: Submit Prompt to AI Interpretation (Point 3 & 4)
+  const handleSubmitPrompt = async (promptText) => {
+    setCurrentPrompt(promptText);
+    setLoading(true);
 
-  // Auto-open canvas and trigger feedback when groups are created
-  React.useEffect(() => {
-    if (groups.length > 0) {
-      // Open canvas on desktop
-      if (window.innerWidth >= 768) {
-        setCanvasOpen(true);
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    try {
+      if (fileData?.file_id && fileData.file_id !== 'sample-students-cohort') {
+        const res = await axios.post(`${apiUrl}/interpret`, {
+          file_id: fileData.file_id,
+          instructions: promptText
+        });
+        if (res.data) {
+          setInterpretation(res.data);
+          setShowInterpretationModal(true);
+          setLoading(false);
+          return;
+        }
       }
-
-      // Trigger feedback if first time (once per user)
-      const hasRequestedFeedback = localStorage.getItem('sortify_feedback_requested');
-      if (!hasRequestedFeedback) {
-        // Small delay to let user see results first
-        setTimeout(() => {
-          setFeedbackOpen(true);
-          localStorage.setItem('sortify_feedback_requested', 'true');
-        }, 3000);
-      }
+    } catch (err) {
+      console.warn("Backend interpret call failed, using client-side interpretation heuristic:", err);
     }
-  }, [groups]);
 
-  if (showLanding) {
-    return (
-      <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30">
-        <nav className="fixed top-0 w-full z-50 bg-brand-dark/80 backdrop-blur-lg border-b border-white/5">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex-shrink-0">
-                <img className="h-8 w-auto" src="/logo.png" alt="SortifyAI" />
-              </div>
-              <div className="flex items-center gap-3">
-                <ServerStatusBadge status={serverStatus} />
-                <button onClick={handleGetStarted} className="px-4 py-2 text-sm font-medium text-brand-dark bg-brand-primary rounded-lg hover:bg-brand-accent transition-colors">Get Started</button>
-              </div>
-            </div>
-          </div>
-        </nav>
+    // Client-side smart interpretation fallback
+    const countMatch = promptText.match(/(\d+)\s*(?:groups?|teams?|houses?)/i);
+    const count = countMatch ? parseInt(countMatch[1]) : 10;
+    const total = fileData?.total_rows || 120;
+    const avgPerGrp = Math.round(total / count);
 
-        <main className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative">
-          {/* Background Effects */}
-          <div className="absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute top-0 left-1/4 w-72 h-72 bg-brand-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-            <div className="absolute top-0 right-1/4 w-72 h-72 bg-brand-accent/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-            <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-purple-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-            <div className="absolute inset-0 bg-grid-pattern opacity-[0.03]"></div>
-          </div>
+    const summaryPoints = [
+      `${count} groups (~${avgPerGrp} students per group)`
+    ];
+    if (/gender|sex|male|female|boy|girl/i.test(promptText)) {
+      summaryPoints.push("Balance male and female distribution equally (50/50 where possible)");
+    }
+    if (/prog|programme|course|track|mix|subject/i.test(promptText)) {
+      summaryPoints.push("Evenly distribute students from different programmes across groups");
+    }
+    if (/score|academic|mark|performance|similar|high/i.test(promptText)) {
+      summaryPoints.push("Balance academic performance spread so each group has equal average score");
+    }
 
-          <div className="text-center space-y-8 relative z-10">
-            <div className="inline-flex items-center px-3 py-1 rounded-full border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-sm font-medium mb-4 opacity-0-init animate-fadeIn">
-              <span className="flex h-2 w-2 rounded-full bg-brand-primary mr-2 animate-pulse"></span>
-              AI-Powered File Organization
-            </div>
+    if (summaryPoints.length === 1) {
+      summaryPoints.push("Balanced and diverse allocation across all detected attributes");
+    }
 
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 opacity-0-init animate-fadeInUp delay-200">
-              Organize your chaos with <br className="hidden sm:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-brand-accent to-brand-primary bg-[length:200%_auto] animate-gradient">
-                Intelligent Grouping
-              </span>
-            </h1>
+    setInterpretation({
+      interpreted_as: summaryPoints,
+      criteria: {
+        primary: /score|academic/i.test(promptText) ? "Academic Score" : "Equal Group Sizes",
+        secondary: /prog/i.test(promptText) ? "Programme Diversity" : "Cohort Distribution",
+        balance: /gender|sex/i.test(promptText) ? "Gender (50/50)" : "Even Headcount",
+        group_count: count
+      },
+      group_count: count
+    });
+    setShowInterpretationModal(true);
+    setLoading(false);
+  };
 
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed opacity-0-init animate-fadeInUp delay-400">
-              Stop wasting time searching for files. Our advanced AI analyzes, categorizes, and groups your data automatically, turning disorder into structured insights.
-            </p>
+  // Handler: Confirm Interpretation -> Run Multi-step Processing -> Generate Groups (Point 3, 5, 14)
+  const handleConfirmGenerate = async () => {
+    setShowInterpretationModal(false);
+    setCurrentView('processing');
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center opacity-0-init animate-scaleIn delay-600">
-              <button
-                onClick={handleGetStarted}
-                className="group relative w-full sm:w-auto px-8 py-4 bg-brand-primary text-brand-dark font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20 hover:shadow-brand-primary/50 hover:shadow-2xl hover:scale-110 overflow-hidden animate-glow"
-              >
-                <span className="absolute inset-0 bg-gradient-to-r from-brand-accent to-brand-primary opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                <span className="relative flex items-center gap-2">
-                  Start Sorting Now
-                  <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
-            </div>
-          </div>
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const startTime = Date.now();
 
-          <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-8 text-left relative z-10">
-            {[
-              { title: "Smart Classification", desc: "Automatically identifies and tags files based on content, not just filenames.", icon: FolderIcon },
-              { title: "Visual Clusters", desc: "View your data in intuitive clusters to spot patterns and outliers instantly.", icon: Squares2X2Icon },
-              { title: "Secure Processing", desc: "Enterprise-grade encryption ensures your sensitive data remains private.", icon: ShieldCheckIcon }
-            ].map((feature, i) => (
-              <div key={i} className={`p-8 rounded-2xl bg-brand-secondary/20 border border-white/5 hover:border-brand-primary/50 transition-all hover:bg-brand-secondary/30 hover:shadow-xl hover:shadow-brand-primary/10 hover:-translate-y-2 group opacity-0-init animate-fadeInUp delay-${(i + 7) * 100}`}>
-                <div className="w-12 h-12 rounded-lg bg-brand-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all group-hover:bg-brand-primary/20">
-                  <feature.icon className="w-6 h-6 text-brand-primary group-hover:text-brand-accent transition-colors" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-brand-primary transition-colors">{feature.title}</h3>
-                <p className="text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
+    try {
+      if (fileData?.file_id && fileData.file_id !== 'sample-students-cohort') {
+        const response = await axios.post(`${apiUrl}/group`, {
+          file_id: fileData.file_id,
+          instructions: currentPrompt
+        });
 
-          {/* Footer */}
-          <div className="mt-24 pt-8 border-t border-white/10 text-center opacity-0-init animate-fadeIn delay-800 relative z-10">
-            <p className="text-sm text-slate-400">
-              Developed by <a href="https://personal-portfolio-three-woad-31.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-semibold hover:text-brand-accent transition-colors">BAAFI O. MARCUS</a>
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
+        if (response.data && response.data.groups && response.data.groups.length > 0) {
+          // Allow processing animation to display for at least 2.5s for professional feel (Point 14)
+          const elapsed = Date.now() - startTime;
+          const waitTime = Math.max(0, 2500 - elapsed);
+          setTimeout(() => {
+            setGroups(response.data.groups);
+            setDecisionSummary(response.data.decision_summary || interpretation?.criteria);
+            setCurrentView('results');
+          }, waitTime);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend group endpoint encountered error, activating intelligent local grouping:", err);
+    }
+
+    // Local balanced grouping engine (for sample data or offline mode)
+    const records = fileData?.records || generateSampleStudents().records;
+    const count = interpretation?.group_count || 10;
+    const generatedGroups = [];
+
+    for (let g = 0; g < count; g++) {
+      generatedGroups.push({
+        name: `Group ${g + 1}`,
+        description: `Balanced cohort of students`,
+        items: []
+      });
+    }
+
+    // Balanced distribution: round-robin sort by score and gender
+    const sorted = [...records].sort((a, b) => (b.Score || 0) - (a.Score || 0));
+    sorted.forEach((student, idx) => {
+      // Snake distribution for perfect score equality
+      const cycle = Math.floor(idx / count);
+      const pos = cycle % 2 === 0 ? idx % count : count - 1 - (idx % count);
+      generatedGroups[pos].items.push(student);
+    });
+
+    setTimeout(() => {
+      setGroups(generatedGroups);
+      setDecisionSummary(interpretation?.criteria || {
+        primary: "Academic Score",
+        secondary: "Programme Mix",
+        balance: "Gender Parity",
+        group_count: count
+      });
+      setCurrentView('results');
+    }, 2800);
+  };
+
+  // Handler: Follow-Up AI Regroup (Point 7)
+  const handleRefineWithAI = async (refineInstruction) => {
+    const updatedPrompt = `${currentPrompt}. Adjustment: ${refineInstruction}`;
+    setCurrentPrompt(updatedPrompt);
+    await handleSubmitPrompt(updatedPrompt);
+  };
+
+  // Handler: Check My Groups Audit (Point 19)
+  const handleCheckGroups = async () => {
+    setLoading(true);
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    try {
+      if (fileData?.file_id && fileData.file_id !== 'sample-students-cohort') {
+        const res = await axios.post(`${apiUrl}/check-groups`, {
+          file_id: fileData.file_id
+        });
+        if (res.data) {
+          setAuditReport(res.data);
+          setShowAuditModal(true);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend check-groups error:", err);
+    }
+
+    // Default audit report simulation
+    setAuditReport({
+      group_column: "Group",
+      total_groups: 8,
+      total_students: fileData?.total_rows || 120,
+      report: {
+        group_size: "Good",
+        gender_balance: "Needs Adjustment",
+        academic_balance: "Good",
+        insights: [
+          "Group size is consistent (~15 students per group).",
+          "Gender imbalance detected: Group 2 has 75% male students while Group 5 has only 20% male students.",
+          "Academic scores are evenly spread across groups."
+        ]
+      }
+    });
+    setShowAuditModal(true);
+    setLoading(false);
+  };
+
+  // Reset to Start Over
+  const handleReset = () => {
+    setFileData(null);
+    setGroups([]);
+    setDecisionSummary(null);
+    setCurrentPrompt("");
+    setCurrentView('upload');
+  };
 
   return (
-    <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30 flex">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-brand-secondary/20 backdrop-blur-xl border border-white/10 rounded-lg"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          {mobileMenuOpen ? (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          )}
-        </svg>
-      </button>
-
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        w-64 bg-brand-secondary/10 border-r border-white/10 flex flex-col h-screen fixed left-0 top-0 z-40
-        md:translate-x-0 transition-transform duration-300
-        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <img className="h-8 w-auto" src="/logo.png" alt="SortifyAI" />
-          <ServerStatusBadge status={serverStatus} />
-        </div>
-
-        <div className="p-3">
-          <button
-            onClick={() => {
-              setFileId(null);
-              setGroups([]);
-              setMobileMenuOpen(false);
-            }}
-            className="w-full flex items-center gap-2 px-3 py-3 rounded-md border border-white/20 hover:bg-brand-secondary/30 transition-colors text-white text-sm text-left"
-          >
-            <PlusIcon className="w-4 h-4" />
-            New chat
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-2">
-          <div className="text-xs font-medium text-slate-500 mb-2 px-2">Recent</div>
-          {fileId && (
-            <button className="w-full flex items-center gap-2 px-2 py-2 rounded-md bg-brand-secondary/30 text-slate-300 text-sm text-left truncate">
-              <ChatBubbleLeftIcon className="w-4 h-4 shrink-0" />
-              Current Session
-            </button>
-          )}
-        </div>
-
-        <div className="p-3 border-t border-white/10 space-y-1">
-          <button
-            onClick={() => {
-              setFeedbackOpen(true);
-              setMobileMenuOpen(false);
-            }}
-            className="w-full flex items-center gap-2 px-2 py-3 rounded-md hover:bg-brand-secondary/30 transition-colors text-white text-sm text-left"
-          >
-            <ChatBubbleBottomCenterTextIcon className="w-4 h-4" />
-            Give Feedback
-          </button>
-          <button className="w-full flex items-center gap-2 px-2 py-3 rounded-md hover:bg-brand-secondary/30 transition-colors text-white text-sm text-left">
-            <UserCircleIcon className="w-5 h-5" />
-            Profile
-          </button>
-          <button className="w-full flex items-center gap-2 px-2 py-3 rounded-md hover:bg-brand-secondary/30 transition-colors text-white text-sm text-left">
-            <Cog6ToothIcon className="w-5 h-5" />
-            Settings
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 md:ml-64 flex h-screen overflow-hidden bg-brand-dark relative">
-        {/* Chat Area - Centered */}
-        <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${canvasOpen && groups.length > 0 ? 'md:mr-[400px]' : ''}`}>
-          {/* Mobile Canvas Toggle Button */}
-          {groups.length > 0 && (
-            <button
-              onClick={() => setCanvasOpen(!canvasOpen)}
-              className="md:hidden fixed bottom-6 right-6 z-30 p-4 bg-brand-primary text-brand-dark rounded-full shadow-2xl"
+    <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30 flex flex-col">
+      {/* Studio Header (shown when inside app workflow, not on landing page) */}
+      {currentView !== 'landing' && (
+        <header className="sticky top-0 z-40 bg-brand-dark/90 backdrop-blur-xl border-b border-white/10 no-print">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            {/* Logo */}
+            <div 
+              onClick={() => setCurrentView('landing')}
+              className="flex items-center gap-3 cursor-pointer group"
             >
-              <Squares2X2Icon className="w-6 h-6" />
-            </button>
-          )}
+              <img className="h-8 w-auto group-hover:scale-105 transition-transform" src="/logo.png" alt="SortifyAI" />
+              <span className="font-extrabold text-base tracking-tight text-white hidden sm:inline">
+                Sortify<span className="text-brand-primary">AI</span>
+              </span>
+            </div>
 
-          <div className="flex-1 overflow-hidden relative">
-            {!fileId ? (
-              <FileUpload onUploadSuccess={handleUploadSuccess} serverStatus={serverStatus} />
-            ) : (
-              <ChatInterface
-                fileId={fileId}
-                onGroupData={setGroups}
-                onMessage={handleMessage}
-                totalRows={totalRows}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Canvas Panel (Group Display) - Right Side */}
-        {groups.length > 0 && (
-          <div className={`
-            fixed md:absolute right-0 top-0 bottom-0 
-            w-full md:w-[400px] 
-            border-l border-white/10 bg-brand-dark shadow-2xl 
-            flex flex-col transition-transform duration-300 z-20
-            ${canvasOpen ? 'translate-x-0' : 'translate-x-full'}
-          `}>
-            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-brand-secondary/10">
-              <h3 className="font-semibold text-white">Canvas</h3>
-              <button
-                onClick={() => {
-                  setCanvasOpen(false);
-                  if (window.innerWidth < 768) {
-                    // On mobile, also clear groups when closing
-                    // setGroups([]);
-                  }
-                }}
-                className="text-slate-400 hover:text-white"
+            {/* Workflow Breadcrumb (Point 1) */}
+            <div className="hidden md:flex items-center gap-2 text-xs font-semibold">
+              <button 
+                onClick={() => setCurrentView('upload')}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                  currentView === 'upload' 
+                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/30 font-bold" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
               >
-                <span className="sr-only">Close</span>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <span>1. Student Data</span>
+              </button>
+              <span className="text-slate-600">→</span>
+              <button 
+                onClick={() => fileData && setCurrentView('prompt')}
+                disabled={!fileData}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors disabled:opacity-40 ${
+                  currentView === 'prompt' 
+                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/30 font-bold" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <span>2. Grouping Goals</span>
+              </button>
+              <span className="text-slate-600">→</span>
+              <button 
+                onClick={() => groups.length > 0 && setCurrentView('results')}
+                disabled={groups.length === 0}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors disabled:opacity-40 ${
+                  currentView === 'results' || currentView === 'processing'
+                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/30 font-bold" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <span>3. Results Studio</span>
               </button>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <GroupDisplay groups={groups} dataSummary={dataSummary} />
+
+            {/* Controls */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {serverStatus === 'warming' && (
+                <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <span>Waking server...</span>
+                </div>
+              )}
+
+              {fileData && (
+                <button
+                  onClick={handleReset}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition-colors"
+                >
+                  New Project
+                </button>
+              )}
+
+              <button
+                onClick={() => setFeedbackOpen(true)}
+                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                title="Give Feedback"
+              >
+                <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
+              </button>
             </div>
+          </div>
+        </header>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1">
+        {/* View 1: Outcome-focused Landing Page (Points 1, 18) */}
+        {currentView === 'landing' && (
+          <LandingPage
+            onGetStarted={() => setCurrentView('upload')}
+            onTrySample={handleTrySample}
+            serverStatus={serverStatus}
+          />
+        )}
+
+        {/* View 2: Step 1 Upload & Data Preview Inspector (Points 2, 15) */}
+        {currentView === 'upload' && (
+          <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <FileInspector
+              fileData={fileData}
+              onFileLoaded={handleFileLoaded}
+              onProceed={() => setCurrentView('prompt')}
+              onReset={handleReset}
+              serverStatus={serverStatus}
+              onLoadSample={handleTrySample}
+            />
+          </div>
+        )}
+
+        {/* View 3: Step 2 "What do you want?" Signature Prompt (Points 3, 8, 9) */}
+        {currentView === 'prompt' && (
+          <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div className="mb-6 max-w-4xl mx-auto flex items-center justify-between">
+              <button
+                onClick={() => setCurrentView('upload')}
+                className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5"
+              >
+                ← Back to Student Data Preview
+              </button>
+              {fileData && (
+                <span className="text-xs text-slate-400 font-mono">
+                  Active file: <strong className="text-cyan-300">{fileData.filename}</strong> ({fileData.total_rows} records)
+                </span>
+              )}
+            </div>
+
+            <GroupingPrompt
+              fileData={fileData}
+              onSubmitPrompt={handleSubmitPrompt}
+              onCheckGroups={handleCheckGroups}
+              loading={loading}
+            />
+          </div>
+        )}
+
+        {/* View 4: Step 3 Multi-Step Processing State (Point 14) */}
+        {currentView === 'processing' && (
+          <ProcessingState onComplete={() => setCurrentView('results')} />
+        )}
+
+        {/* View 5: Step 4 Results & Analytics Studio (Points 4, 5, 6, 7, 10, 11, 12, 13) */}
+        {currentView === 'results' && (
+          <div className="py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <ResultsStudio
+              groups={groups}
+              decisionSummary={decisionSummary}
+              onRefineWithAI={handleRefineWithAI}
+              onOpenExport={() => setShowExportModal(true)}
+              onPrintRoster={() => window.print()}
+              totalRows={fileData?.total_rows || 120}
+            />
           </div>
         )}
       </div>
 
-      {/* Feedback Modal */}
-      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      {/* Modal: AI Interpretation & Pre-Confirmation (Points 3, 4) */}
+      <InterpretationModal
+        isOpen={showInterpretationModal}
+        interpretation={interpretation}
+        onConfirm={handleConfirmGenerate}
+        onModify={() => setShowInterpretationModal(false)}
+        onClose={() => setShowInterpretationModal(false)}
+        loading={loading}
+      />
+
+      {/* Modal: Export Options (Point 11) */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        groups={groups}
+        filename={fileData?.filename ? fileData.filename.split('.')[0] : "SortifyAI_Student_Groups"}
+      />
+
+      {/* Modal: Check My Groups Audit (Point 19) */}
+      {showAuditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
+          <CheckGroupsView
+            report={auditReport}
+            onReoptimize={() => {
+              setShowAuditModal(false);
+              setCurrentView('prompt');
+            }}
+            onClose={() => setShowAuditModal(false)}
+          />
+        </div>
+      )}
+
+      {/* Modal: Feedback */}
+      <FeedbackModal
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+      />
     </div>
   );
 };

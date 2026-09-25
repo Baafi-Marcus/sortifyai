@@ -1,0 +1,208 @@
+import React from 'react';
+import { 
+  ArrowRightIcon, 
+  SparklesIcon, 
+  DocumentChartBarIcon, 
+  UserGroupIcon, 
+  ShieldCheckIcon, 
+  ScaleIcon, 
+  ArrowPathIcon, 
+  PrinterIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline';
+
+const LandingPage = ({ onGetStarted, onTrySample, serverStatus }) => {
+  return (
+    <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30">
+      {/* Top Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-brand-dark/80 backdrop-blur-lg border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <img className="h-8 w-auto" src="/logo.png" alt="SortifyAI" />
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                Education Edition
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {serverStatus === 'warming' && (
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <span>Waking server (~30s)...</span>
+                </div>
+              )}
+              {serverStatus === 'ready' && (
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>Server ready</span>
+                </div>
+              )}
+
+              <button 
+                onClick={onGetStarted} 
+                className="px-4 py-2 text-sm font-semibold text-brand-dark bg-brand-primary rounded-lg hover:bg-brand-accent transition-all shadow-lg shadow-brand-primary/20 hover:scale-105"
+              >
+                Upload Student Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative">
+        {/* Background glow effects */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-12 left-1/4 w-96 h-96 bg-brand-primary/15 rounded-full filter blur-3xl opacity-70 animate-pulse"></div>
+          <div className="absolute top-24 right-1/4 w-96 h-96 bg-purple-600/15 rounded-full filter blur-3xl opacity-60"></div>
+          <div className="absolute inset-0 bg-grid-pattern opacity-[0.03]"></div>
+        </div>
+
+        <div className="text-center space-y-8 relative z-10 max-w-4xl mx-auto">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-sm font-medium">
+            <SparklesIcon className="w-4 h-4 animate-spin text-brand-primary" style={{ animationDuration: '6s' }} />
+            <span>AI-Powered Student Allocation & Balanced Grouping</span>
+          </div>
+
+          {/* Outcome-focused Headline */}
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-tight">
+            Turn messy student data into <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-cyan-300 to-brand-accent">
+              balanced groups.
+            </span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Upload your spreadsheet, describe how you want your students grouped, and let SortifyAI do the work.
+          </p>
+
+          {/* Dominant Call-to-Action */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
+            <button
+              onClick={onGetStarted}
+              className="group relative w-full sm:w-auto px-8 py-4 bg-brand-primary text-brand-dark font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-brand-primary/25 hover:shadow-brand-primary/40 hover:bg-brand-accent hover:scale-105"
+            >
+              <span>Upload your student data</span>
+              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              onClick={onTrySample}
+              className="w-full sm:w-auto px-6 py-4 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 transition-all text-sm font-medium text-slate-200 flex items-center justify-center gap-2"
+            >
+              <SparklesIcon className="w-4 h-4 text-brand-primary" />
+              <span>Try with 500 Sample Students</span>
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-400">
+            “Describe how you want them grouped. SortifyAI handles the rest.”
+          </p>
+
+          {/* Visual Concrete Example Card */}
+          <div className="pt-4 max-w-xl mx-auto">
+            <div className="p-4 rounded-2xl bg-brand-secondary/20 border border-white/10 backdrop-blur-md shadow-2xl flex items-center justify-between gap-3 text-xs sm:text-sm font-medium text-slate-300">
+              <span className="flex items-center gap-1.5 font-bold text-white">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-pulse" />
+                500 students
+              </span>
+              <span className="text-slate-500">→</span>
+              <span className="font-bold text-cyan-300">10 groups</span>
+              <span className="text-slate-500">→</span>
+              <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
+                balanced by gender, score & programme
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4-Step Core Workflow Bar */}
+        <div className="mt-20 max-w-4xl mx-auto p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl">
+          <div className="text-center text-xs uppercase tracking-wider text-slate-400 font-bold mb-6">
+            The 4-Step Grouping Workflow
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            {[
+              { step: "1. Upload", desc: ".xlsx, .csv, .pdf supported with data preview", icon: DocumentChartBarIcon },
+              { step: "2. Describe", desc: "Natural prompt: '10 groups, balanced gender & score'", icon: SparklesIcon },
+              { step: "3. Generate", desc: "Instant group distribution with inline analytics", icon: ScaleIcon },
+              { step: "4. Review & Export", desc: "Drag-and-drop tuning + print-ready rosters", icon: PrinterIcon }
+            ].map((item, i) => (
+              <div key={i} className="p-4 rounded-xl bg-brand-secondary/10 border border-white/5 flex flex-col items-center">
+                <item.icon className="w-6 h-6 text-brand-primary mb-2" />
+                <div className="font-bold text-white text-sm">{item.step}</div>
+                <div className="text-xs text-slate-400 mt-1 leading-snug">{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Core Value Pillars */}
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          <div className="p-6 rounded-2xl bg-brand-secondary/15 border border-white/5 hover:border-brand-primary/40 transition-all">
+            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4">
+              <ScaleIcon className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">Automated Equality</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Eliminate teacher bias and hours of manual spreadsheet shuffling. Groups are automatically balanced by gender, academic abilities, and subject tracks.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-brand-secondary/15 border border-white/5 hover:border-brand-primary/40 transition-all">
+            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4">
+              <ArrowPathIcon className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">Interactive Fine-Tuning</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Drag and drop students between groups with instant recalculation of group averages and gender balance, or use follow-up AI prompts to re-optimize.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-brand-secondary/15 border border-white/5 hover:border-brand-primary/40 transition-all">
+            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4">
+              <PrinterIcon className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">School-Ready Exports</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Download clean Excel/CSV spreadsheets or generate ready-to-print rosters formatted specifically for school notice boards and teachers.
+            </p>
+          </div>
+        </div>
+
+        {/* Privacy & Trust Assurance */}
+        <div className="mt-16 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-slate-400">
+            <ShieldCheckIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong>Private & Secure:</strong> Student records are processed in isolated sessions and are never used to train public AI models.
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-20 pt-8 border-t border-white/10 text-center">
+          <p className="text-sm text-slate-500">
+            SortifyAI • Intelligent Student Allocation & Grouping Engine • Developed by{' '}
+            <a 
+              href="https://personal-portfolio-three-woad-31.vercel.app/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-brand-primary font-semibold hover:underline"
+            >
+              BAAFI O. MARCUS
+            </a>
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default LandingPage;

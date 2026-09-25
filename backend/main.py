@@ -27,7 +27,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from data_engine import DataExtractor
 from ai_engine import AIGroupingAgent
 from optimization_engine import OptimizationEngine
-from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project
+from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project, TesterRequest
 from whatsapp_service import send_feedback_notification
 
 security = HTTPBearer(auto_error=False)
@@ -109,6 +109,11 @@ class GoogleLoginRequest(BaseModel):
     name: Optional[str] = None
     avatar_url: Optional[str] = None
     google_id: Optional[str] = None
+
+class TesterSignupRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    organization: Optional[str] = None
 
 class SaveProjectRequest(BaseModel):
     title: str
@@ -907,6 +912,97 @@ async def get_current_user_profile(
             "name": user.name,
             "avatar_url": user.avatar_url,
             "saved_projects_count": saved_projects_count
+        }
+    }
+
+@app.post("/auth/request-tester", summary="Submit Gmail to join Google OAuth Tester Whitelist")
+async def request_tester_access(req: TesterSignupRequest, db: Session = Depends(get_db)):
+    """Collects tester email to be added to Google OAuth Console testing list."""
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required.")
+    
+    existing = db.query(TesterRequest).filter(TesterRequest.email == email).first()
+    if existing:
+        if req.name:
+            existing.name = req.name
+        if req.organization:
+            existing.organization = req.organization
+        db.commit()
+        return {
+            "status": "success",
+            "message": "Your email is already registered on the Google OAuth tester whitelist queue."
+        }
+    
+    record = TesterRequest(
+        email=email,
+        name=req.name or email.split("@")[0],
+        organization=req.organization,
+        status="pending"
+    )
+    db.add(record)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Successfully registered {email} for the Google OAuth testing whitelist."
+    }
+
+@app.get("/auth/testers", summary="Get all submitted tester emails (Admin / Developer)")
+async def get_testers(db: Session = Depends(get_db)):
+    """Returns all requested tester emails formatted for quick copy-paste into Google Console."""
+    testers = db.query(TesterRequest).order_by(TesterRequest.created_at.desc()).all()
+    emails = [t.email for t in testers]
+    return {
+        "count": len(testers),
+        "comma_separated_emails": ", ".join(emails),
+        "testers": [
+            {
+                "id": t.id,
+                "email": t.email,
+                "name": t.name,
+                "organization": t.organization,
+                "status": t.status,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            }
+            for t in testers
+        ]
+    }
+
+@app.post("/auth/email-login", summary="Direct Passwordless Email Sign-In / Account Creation")
+async def email_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
+    """Allows instant sign-in or signup via email without waiting for Google OAuth whitelist."""
+    email = (req.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required.")
+    
+    name = req.name or email.split("@")[0]
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(
+            email=email,
+            name=name,
+            avatar_url=req.avatar_url or f"https://api.dicebear.com/7.x/initials/svg?seed={name}"
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # Also auto-register in tester_requests if it's a gmail address
+    if "gmail" in email or "googlemail" in email:
+        existing_tr = db.query(TesterRequest).filter(TesterRequest.email == email).first()
+        if not existing_tr:
+            db.add(TesterRequest(email=email, name=name, status="pending"))
+            db.commit()
+    
+    token = create_access_token({"sub": str(user.id), "email": user.email})
+    return {
+        "status": "success",
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "avatar_url": user.avatar_url
         }
     }
 

@@ -6,12 +6,27 @@ import {
   CloudArrowUpIcon,
   ClockIcon,
   UserCircleIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  EnvelopeIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
 const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
+  const [activeTab, setActiveTab] = useState('google'); // 'google' | 'email' | 'request_tester'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+
+  // Email login form state
+  const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+
+  // Tester whitelist request state
+  const [testerEmail, setTesterEmail] = useState('');
+  const [testerName, setTesterName] = useState('');
+  const [testerOrg, setTesterOrg] = useState('');
+  const [testerSubmitted, setTesterSubmitted] = useState(false);
+
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -48,7 +63,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
         document.body.removeChild(script);
       }
     };
-  }, [isOpen, googleClientId]);
+  }, [isOpen, googleClientId, activeTab]);
 
   if (!isOpen) return null;
 
@@ -66,31 +81,60 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
       }
     } catch (err) {
       console.error('Google Sign-in failed:', err);
-      setError(err.response?.data?.detail || 'Failed to authenticate with Google.');
+      setError(err.response?.data?.detail || 'Failed to authenticate with Google. If your account is not yet on the test user list, use Email Sign-In below.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Quick Sign-In fallback
-  const handleQuickDemoLogin = async () => {
-    if (loading) return;
+  // Direct Passwordless Email Sign-In / Account Creation
+  const handleEmailLoginSubmit = async (e) => {
+    e.preventDefault();
+    if (!emailInput.trim()) {
+      setError('Please provide your email address.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post(`${apiUrl}/auth/google`, {
-        email: 'teacher.demo@sortifyai.com',
-        name: 'Ghana Education Teacher',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        google_id: 'goog_demo_' + Date.now()
+      const res = await axios.post(`${apiUrl}/auth/email-login`, {
+        email: emailInput.trim(),
+        name: nameInput.trim() || emailInput.split('@')[0]
       });
       if (res.data?.status === 'success') {
         onLoginSuccess(res.data.user, res.data.token);
         onClose();
       }
     } catch (err) {
-      console.error('Sign-in failed:', err);
-      setError(err.response?.data?.detail || 'Sign-in failed. Please verify backend connection.');
+      console.error('Email sign-in failed:', err);
+      setError(err.response?.data?.detail || 'Failed to sign in with email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Submit request to be added to Google OAuth testing whitelist
+  const handleRequestTesterSubmit = async (e) => {
+    e.preventDefault();
+    if (!testerEmail.trim()) {
+      setError('Please provide a valid Gmail address.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.post(`${apiUrl}/auth/request-tester`, {
+        email: testerEmail.trim(),
+        name: testerName.trim() || undefined,
+        organization: testerOrg.trim() || undefined
+      });
+      if (res.data?.status === 'success') {
+        setTesterSubmitted(true);
+        setSuccessMsg(res.data.message || 'Your email has been added to the Google OAuth testing whitelist queue.');
+      }
+    } catch (err) {
+      console.error('Tester request failed:', err);
+      setError(err.response?.data?.detail || 'Could not submit tester request. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -98,25 +142,49 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fadeIn">
-      <div className="relative w-full max-w-md rounded-md bg-slate-900 border border-slate-700 p-6 sm:p-8 space-y-6">
+      <div className="relative w-full max-w-md rounded-md bg-slate-900 border border-slate-700 p-6 sm:p-8 space-y-5">
         {/* Close Button */}
         <button
           onClick={onClose}
           aria-label="Close authentication dialog"
-          className="absolute top-5 right-5 p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-standard"
+          className="absolute top-4 right-4 p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-standard"
         >
           <XMarkIcon className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="mx-auto w-10 h-10 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary">
-            <UserCircleIcon className="w-6 h-6" />
+        <div className="text-center space-y-1">
+          <div className="mx-auto w-9 h-9 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary">
+            <UserCircleIcon className="w-5 h-5" />
           </div>
-          <h3 className="text-xl font-semibold text-white">Sign In to SortifyAI</h3>
+          <h3 className="text-base font-semibold text-white">Sign In to SortifyAI</h3>
           <p className="text-xs text-slate-400 max-w-xs mx-auto leading-normal">
-            Save and access balanced student groups, export historical rosters, and manage allocations.
+            Save and access balanced student groups in your secure cloud database.
           </p>
+        </div>
+
+        {/* Auth Mode Tabs */}
+        <div className="flex rounded bg-slate-950 border border-slate-800 p-0.5 text-xs font-medium">
+          <button
+            onClick={() => { setActiveTab('google'); setError(null); setSuccessMsg(null); }}
+            className={`flex-1 py-1.5 rounded transition-standard ${
+              activeTab === 'google'
+                ? "bg-slate-800 text-white font-semibold"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Google OAuth
+          </button>
+          <button
+            onClick={() => { setActiveTab('email'); setError(null); setSuccessMsg(null); }}
+            className={`flex-1 py-1.5 rounded transition-standard ${
+              activeTab === 'email'
+                ? "bg-slate-800 text-white font-semibold"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Instant Email Sign-In
+          </button>
         </div>
 
         {error && (
@@ -125,71 +193,187 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
           </div>
         )}
 
-        {/* Google OAuth Button Container */}
-        <div className="space-y-4 pt-2">
-          <div className="flex justify-center">
-            {googleClientId ? (
+        {successMsg && (
+          <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
+            <CheckCircleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Tab 1: Google OAuth */}
+        {activeTab === 'google' && (
+          <div className="space-y-4">
+            <div className="flex justify-center pt-2">
               <div id="google-signin-button-render"></div>
-            ) : (
+            </div>
+
+            {/* Tester Whitelist Helper Callout */}
+            <div className="p-3.5 rounded bg-slate-800/40 border border-slate-800 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  Beta Testing Program
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                  100 User Cap
+                </span>
+              </div>
+              <p className="text-slate-400 text-xs leading-normal">
+                Google OAuth is currently in testing status. If your Gmail has not been added to the whitelist yet, submit it below or use Instant Email Sign-In.
+              </p>
+
               <button
-                onClick={handleQuickDemoLogin}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs transition-standard hover-subtle disabled:opacity-50"
+                type="button"
+                onClick={() => { setActiveTab('request_tester'); setError(null); }}
+                className="text-cyan-400 hover:text-cyan-300 font-semibold underline text-xs block"
               >
-                {loading ? (
-                  <>
-                    <ArrowPathIcon className="w-4 h-4 animate-spin text-slate-900" />
-                    <span>Signing In...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        fill="#4285F4"
-                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.94H1.28v3.13C3.28 21.36 7.36 24 12 24z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.32 14.26c-.24-.73-.38-1.5-.38-2.26s.14-1.53.38-2.26V6.61H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.39l4.04-3.13z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.94 1.19 15.24 0 12 0 7.36 0 3.28 2.64 1.28 6.61l4.04 3.13c.94-2.84 3.58-4.97 6.68-4.97z"
-                      />
-                    </svg>
-                    <span>Continue with Google</span>
-                  </>
-                )}
+                + Submit my Gmail to join the tester whitelist
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Direct Passwordless Email Sign-In */}
+        {activeTab === 'email' && (
+          <form onSubmit={handleEmailLoginSubmit} className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Your Name</label>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="e.g. Kofi Mensah"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address *</label>
+              <input
+                type="email"
+                required
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="teacher@school.edu.gh"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold rounded text-xs transition-standard hover-subtle disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {loading ? (
+                <>
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-slate-900" />
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                <>
+                  <EnvelopeIcon className="w-3.5 h-3.5" />
+                  <span>Sign In & Save to Cloud</span>
+                </>
+              )}
+            </button>
+            <p className="text-[11px] text-slate-500 text-center">
+              No password needed. An account will be automatically provisioned in your Neon database.
+            </p>
+          </form>
+        )}
+
+        {/* Tab 3: Request Tester Whitelist Submission */}
+        {activeTab === 'request_tester' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold text-white">Join Google OAuth Tester Whitelist</h4>
+              <button
+                type="button"
+                onClick={() => setActiveTab('google')}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                ← Back
+              </button>
+            </div>
+
+            {testerSubmitted ? (
+              <div className="p-4 rounded bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2">
+                <CheckCircleIcon className="w-8 h-8 text-emerald-400 mx-auto" />
+                <p className="text-xs font-semibold text-white">Request Received!</p>
+                <p className="text-[11px] text-slate-300 leading-normal">
+                  Your Gmail has been submitted to the tester queue. In the meantime, you can immediately sign in via the <strong>Instant Email Sign-In</strong> tab!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('email')}
+                  className="mt-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-medium border border-slate-700 transition-standard"
+                >
+                  Continue to Instant Sign-In →
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleRequestTesterSubmit} className="space-y-2.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Gmail Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={testerEmail}
+                    onChange={(e) => setTesterEmail(e.target.value)}
+                    placeholder="your.account@gmail.com"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name (Optional)</label>
+                  <input
+                    type="text"
+                    value={testerName}
+                    onChange={(e) => setTesterName(e.target.value)}
+                    placeholder="e.g. Kwame Mensah"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">School / Organization (Optional)</label>
+                  <input
+                    type="text"
+                    value={testerOrg}
+                    onChange={(e) => setTesterOrg(e.target.value)}
+                    placeholder="e.g. Prempeh College / University of Ghana"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold rounded text-xs transition-standard hover-subtle disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {loading ? (
+                    <>
+                      <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-slate-900" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <span>Submit Tester Request</span>
+                  )}
+                </button>
+              </form>
             )}
           </div>
+        )}
 
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-slate-800"></div>
-            <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-widest font-mono">
-              Cloud Persistence
-            </span>
-            <div className="flex-grow border-t border-slate-800"></div>
+        {/* Benefits list */}
+        <div className="space-y-1.5 rounded bg-slate-800/40 border border-slate-800 p-3 text-[11px] text-slate-300">
+          <div className="flex items-center gap-2">
+            <CloudArrowUpIcon className="w-3.5 h-3.5 text-brand-primary shrink-0" />
+            <span>Save multiple projects to your Neon cloud database</span>
           </div>
-
-          {/* Benefits list */}
-          <div className="space-y-2 rounded bg-slate-800/50 border border-slate-800 p-3.5 text-xs text-slate-300">
-            <div className="flex items-center gap-2">
-              <CloudArrowUpIcon className="w-4 h-4 text-brand-primary shrink-0" />
-              <span>Persist multiple projects to your Neon cloud database</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ShieldCheckIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>One-click Google authentication with no local passwords</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ClockIcon className="w-4 h-4 text-slate-400 shrink-0" />
-              <span>Access historical cohorts and reassign records anytime</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Strict educational student data privacy</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ClockIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>Access historical cohorts and reassign records anytime</span>
           </div>
         </div>
 
@@ -203,7 +387,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
           <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
             Privacy Policy
           </a>
-          . Student data remains strictly private.
+          .
         </p>
       </div>
     </div>

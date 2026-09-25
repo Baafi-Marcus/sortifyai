@@ -149,6 +149,16 @@ class Project(Base):
     
     owner = relationship("User", back_populates="projects")
 
+class TesterRequest(Base):
+    __tablename__ = "tester_requests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=True)
+    organization = Column(String, nullable=True)
+    status = Column(String, default="pending")  # pending, added
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Create tables
 def init_db():
     Base.metadata.create_all(bind=engine)

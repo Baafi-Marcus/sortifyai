@@ -8,6 +8,7 @@ if backend_dir not in sys.path:
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import shutil
@@ -881,6 +882,12 @@ async def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
             "avatar_url": user.avatar_url
         }
     }
+
+@app.get("/auth/google/callback", summary="Google OAuth Web Server Redirect Callback")
+async def google_oauth_callback():
+    """Handles web server redirect flow if triggered by browser redirect."""
+    frontend_url = os.getenv("FRONTEND_URL", "https://sortify-ai.vercel.app")
+    return RedirectResponse(url=frontend_url)
 
 @app.get("/auth/me", summary="Get Current Authenticated User Profile")
 async def get_current_user_profile(

@@ -8,12 +8,13 @@ import uuid
 import pandas as pd
 import json
 import re
-from typing import List
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from data_engine import DataExtractor
 from ai_engine import AIGroupingAgent
-from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback
+from optimization_engine import OptimizationEngine
+from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog
 from whatsapp_service import send_feedback_notification
 
 app = FastAPI(
@@ -45,6 +46,7 @@ init_db()
 # Initialize engines
 data_extractor = DataExtractor()
 ai_agent = AIGroupingAgent()
+optimization_engine = OptimizationEngine()
 
 # Create uploads directory if it doesn't exist
 os.makedirs("uploads", exist_ok=True)
@@ -57,6 +59,21 @@ class GroupingRequest(BaseModel):
 class InterpretRequest(BaseModel):
     file_id: str
     instructions: str
+
+class V2OptimizationRequest(BaseModel):
+    file_id: Optional[str] = None
+    data: Optional[List[Dict[str, Any]]] = None
+    instructions: Optional[str] = "Divide into balanced groups"
+    num_groups: Optional[int] = 10
+    constraints: Optional[Dict[str, Any]] = None
+
+class V2ValidateRequest(BaseModel):
+    groups: List[Dict[str, Any]]
+    constraints: Dict[str, Any]
+
+class CreateAPIKeyRequest(BaseModel):
+    name: str
+    tier: Optional[str] = "developer"
 
 class CheckGroupsRequest(BaseModel):
     file_id: str
@@ -651,3 +668,80 @@ async def get_all_feedback(db: Session = Depends(get_db)):
             for f in feedbacks
         ]
     }
+
+# ==========================================
+# SortifyAI V2 — Platform Engine & API Core
+# ==========================================
+
+@app.post("/v2/optimize", summary="Core Allocation & Multi-Objective Optimization Engine")
+@app.post("/api/v2/optimize", include_in_schema=False)
+async def v2_optimize_endpoint(req: V2OptimizationRequest, db: Session = Depends(get_db)):
+    """
+    SortifyAI Core V2 Engine Contract:
+    Accepts: DATA (or file_id) + USER INSTRUCTIONS + CONSTRAINTS + NUMBER OF GROUPS
+    Returns: GROUPS + STATISTICS + VALIDATION + EXPLANATION
+    """
+    records = []
+    
+    # 1. Acquire records from raw payload or uploaded file
+    if req.data:
+        records = req.data
+    elif req.file_id:
+        db_file = db.query(DBFile).filter(DBFile.file_id == req.file_id).first()
+        if not db_file:
+            raise HTTPException(status_code=404, detail="File ID not found.")
+        try:
+            df = data_extractor.load_data(db_file.file_path)
+            if isinstance(df, pd.DataFrame):
+                records = df.to_dict(orient="records")
+            elif isinstance(df, list):
+                records = [{"text": line} for line in df]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to read file data: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail="Either 'data' array or 'file_id' must be provided.")
+
+    if not records:
+        raise HTTPException(status_code=400, detail="Dataset contains 0 records.")
+
+    # 2. Execute deterministic multi-objective optimization & balancing
+    result = optimization_engine.allocate_balanced_groups(
+        records=records,
+        num_groups=req.num_groups or 10,
+        constraints=req.constraints
+    )
+    
+    return result
+
+@app.post("/v2/validate", summary="Validate Grouping Constraints & Balance Score")
+@app.post("/api/v2/validate", include_in_schema=False)
+async def v2_validate_endpoint(req: V2ValidateRequest):
+    """Validates allocations against hard and soft constraints."""
+    return optimization_engine.validate_constraints(
+        groups=req.groups,
+        constraints=req.constraints
+    )
+
+@app.post("/v2/api-keys", summary="Generate a Developer API Key")
+@app.post("/api/v2/api-keys", include_in_schema=False)
+async def create_api_key(req: CreateAPIKeyRequest, db: Session = Depends(get_db)):
+    """Generates a developer API key for external platform integration."""
+    new_key = f"sk_live_{uuid.uuid4().hex}"
+    api_key_record = APIKey(
+        key=new_key,
+        name=req.name,
+        tier=req.tier or "developer",
+        rate_limit_per_min=120 if req.tier in ["pro", "enterprise"] else 60
+    )
+    db.add(api_key_record)
+    db.commit()
+    db.refresh(api_key_record)
+    return {
+        "status": "success",
+        "api_key": new_key,
+        "name": api_key_record.name,
+        "tier": api_key_record.tier,
+        "rate_limit_per_min": api_key_record.rate_limit_per_min,
+        "created_at": api_key_record.created_at.isoformat()
+    }
+

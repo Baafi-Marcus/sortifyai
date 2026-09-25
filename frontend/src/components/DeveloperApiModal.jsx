@@ -16,67 +16,75 @@ const DeveloperApiModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const codeSnippets = {
-    curl: `# 1. Upload dataset
-curl -X POST https://sortifyai-backend.onrender.com/upload \\
-  -F "file=@students_2026.xlsx"
-
-# 2. Interpret natural-language instruction
-curl -X POST https://sortifyai-backend.onrender.com/interpret \\
+    curl: `# Direct Allocation via SortifyAI Core V2 Engine
+curl -X POST https://sortifyai-backend.onrender.com/v2/optimize \\
   -H "Content-Type: application/json" \\
+  -H "X-API-Key: sk_live_your_key_here" \\
   -d '{
-    "file_id": "3f9e...",
-    "instructions": "Divide into 10 groups, balanced by gender and score"
+    "data": [
+      {"name": "Ama Mensah", "gender": "Female", "score": 85},
+      {"name": "Kofi Owusu", "gender": "Male", "score": 72},
+      {"name": "Kwame Asante", "gender": "Male", "score": 64},
+      {"name": "Akosua Serwaa", "gender": "Female", "score": 91}
+    ],
+    "num_groups": 2,
+    "instructions": "Divide into 2 equal groups balanced by gender and score",
+    "constraints": {
+      "min_size": 2,
+      "max_size": 2
+    }
   }'
 
-# 3. Generate optimized groups & analytics
-curl -X POST https://sortifyai-backend.onrender.com/group \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "file_id": "3f9e...",
-    "instructions": "Divide into 10 groups, balanced by gender and score"
-  }'`,
+# Response contains: GROUPS + STATISTICS + VALIDATION + EXPLANATION`,
 
     python: `import requests
 
 API_URL = "https://sortifyai-backend.onrender.com"
 
-# 1. Upload student dataset
-with open("students_2026.xlsx", "rb") as f:
-    upload_res = requests.post(f"{API_URL}/upload", files={"file": f}).json()
-    file_id = upload_res["file_id"]
+# Direct JSON allocation via SortifyAI Core Engine V2
+payload = {
+    "num_groups": 10,
+    "instructions": "Balance cohorts by academic score and gender parity",
+    "constraints": {
+        "keep_together": [["Ama Mensah", "Kofi Owusu"]],
+        "separate": [["Kwame Asante", "Yaw Boateng"]]
+    },
+    # Pass either file_id or raw records array
+    "file_id": "3f9e2b10..." 
+}
 
-# 2. Run allocation & optimization
-group_res = requests.post(
-    f"{API_URL}/group",
-    json={
-        "file_id": file_id,
-        "instructions": "Divide into 10 groups, balanced by gender and score"
-    }
-).json()
+response = requests.post(f"{API_URL}/v2/optimize", json=payload).json()
 
-# Access balanced groups and inline analytics
-for group in group_res["groups"]:
-    print(f"{group['name']}: {len(group['items'])} students | Avg: {group['analytics']['avg_score']}")`,
+# Access balanced groups, balance score, and validation
+print("Balance Score:", response["statistics"]["balance_score"])
+print("Constraint Validation:", response["validation"]["is_valid"])
 
-    js: `// SortifyAI JavaScript / TypeScript SDK Client
+for group in response["groups"]:
+    print(f"{group['name']} ({group['size']} students) - Avg Score: {group['analytics']['avg_score']}")`,
+
+    js: `// SortifyAI TypeScript / Node.js Engine Client
 const API_URL = "https://sortifyai-backend.onrender.com";
 
-// 1. Upload File
-const formData = new FormData();
-formData.append("file", fileInput.files[0]);
-const upload = await fetch(\`\${API_URL}/upload\`, { method: "POST", body: formData }).then(r => r.json());
-
-// 2. Request Optimized Allocation
-const results = await fetch(\`\${API_URL}/group\`, {
+// Call the SortifyAI Allocation & Optimization Engine
+const response = await fetch(\`\${API_URL}/v2/optimize\`, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "X-API-Key": "sk_live_your_key_here"
+  },
   body: JSON.stringify({
-    file_id: upload.file_id,
-    instructions: "Divide into 10 groups, balanced by gender and score"
+    data: studentRecords, // Array of structured objects
+    num_groups: 10,
+    instructions: "Divide into 10 groups, balanced by gender and score",
+    constraints: {
+      min_size: 48,
+      max_size: 52
+    }
   })
-}).then(r => r.json());
+});
 
-console.log(results.groups);`
+const { groups, statistics, validation, explanation } = await response.json();
+console.log(\`Overall Balance Score: \${statistics.balance_score}%\`);`
   };
 
   const handleCopy = () => {

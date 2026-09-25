@@ -66,6 +66,28 @@ class Feedback(Base):
     message = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class APIKey(Base):
+    __tablename__ = "api_keys"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    tier = Column(String, default="developer")  # free, developer, pro, enterprise
+    rate_limit_per_min = Column(Integer, default=60)
+    requests_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class APIUsageLog(Base):
+    __tablename__ = "api_usage_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=True)
+    endpoint = Column(String, nullable=False)
+    status_code = Column(Integer, default=200)
+    latency_ms = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Create tables
 def init_db():
     Base.metadata.create_all(bind=engine)

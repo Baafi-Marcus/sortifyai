@@ -5,6 +5,30 @@ import ChatInterface from './components/ChatInterface';
 import GroupDisplay from './components/GroupDisplay';
 import FeedbackModal from './components/FeedbackModal';
 
+const ServerStatusBadge = ({ status }) => {
+  if (status === 'checking') return null;
+
+  if (status === 'warming') {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+        </span>
+        <span className="hidden sm:inline">Waking backend (~30s)...</span>
+        <span className="sm:hidden">Waking...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+      <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+      <span className="hidden sm:inline">Server ready</span>
+    </div>
+  );
+};
+
 const App = () => {
   const [showLanding, setShowLanding] = useState(true);
   const [fileId, setFileId] = useState(null);
@@ -14,6 +38,39 @@ const App = () => {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [canvasOpen, setCanvasOpen] = useState(false);
+  const [serverStatus, setServerStatus] = useState('checking'); // 'checking' | 'warming' | 'ready'
+
+  // Pre-warm the backend on initial load to mitigate Render cold starts
+  React.useEffect(() => {
+    let isMounted = true;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    // If server hasn't answered in 2.5s, it is waking up from Render sleep
+    const warmingTimer = setTimeout(() => {
+      if (isMounted) setServerStatus('warming');
+    }, 2500);
+
+    const prewarm = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/health`, { mode: 'cors' }).catch(() =>
+          fetch(`${apiUrl}/`, { mode: 'cors' })
+        );
+        if (res && res.ok) {
+          clearTimeout(warmingTimer);
+          if (isMounted) setServerStatus('ready');
+        }
+      } catch (err) {
+        console.warn('Backend pre-warming ping failed or server is waking up:', err);
+      }
+    };
+
+    prewarm();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(warmingTimer);
+    };
+  }, []);
 
   const handleUploadSuccess = (data) => {
     setFileId(data.file_id);
@@ -61,7 +118,8 @@ const App = () => {
               <div className="flex-shrink-0">
                 <img className="h-8 w-auto" src="/logo.png" alt="SortifyAI" />
               </div>
-              <div>
+              <div className="flex items-center gap-3">
+                <ServerStatusBadge status={serverStatus} />
                 <button onClick={handleGetStarted} className="px-4 py-2 text-sm font-medium text-brand-dark bg-brand-primary rounded-lg hover:bg-brand-accent transition-colors">Get Started</button>
               </div>
             </div>
@@ -165,8 +223,9 @@ const App = () => {
         md:translate-x-0 transition-transform duration-300
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="p-4 border-b border-white/10">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <img className="h-8 w-auto" src="/logo.png" alt="SortifyAI" />
+          <ServerStatusBadge status={serverStatus} />
         </div>
 
         <div className="p-3">
@@ -231,7 +290,7 @@ const App = () => {
 
           <div className="flex-1 overflow-hidden relative">
             {!fileId ? (
-              <FileUpload onUploadSuccess={handleUploadSuccess} />
+              <FileUpload onUploadSuccess={handleUploadSuccess} serverStatus={serverStatus} />
             ) : (
               <ChatInterface
                 fileId={fileId}

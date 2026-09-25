@@ -1,0 +1,27 @@
+name: Keep Render Backend Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes (Render free tier spins down after 15 minutes)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    name: Ping Render Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend Health Endpoint
+        run: |
+          TARGET_URL="${{ secrets.RENDER_BACKEND_URL || 'https://sortifyai-backend.onrender.com' }}"
+          echo "Pinging backend at: $TARGET_URL"
+          
+          # Attempt ping with 30s timeout
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "$TARGET_URL/health" || curl -s -o /dev/null -w "%{http_code}" -m 30 "$TARGET_URL/")
+          
+          echo "Response HTTP Status: $STATUS_CODE"
+          if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 400 ]; then
+            echo "✅ Backend is awake and healthy!"
+          else
+            echo "⚠️ Backend responded with status $STATUS_CODE or took time to spin up. It has now received traffic and will stay warm."
+          fi

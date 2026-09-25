@@ -51,6 +51,11 @@ class FeedbackRequest(BaseModel):
 def read_root():
     return {"message": "SortifyAI Backend is running"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "SortifyAI Backend"}
+
+
 def process_file_background(file_id: str, file_path: str):
     """Background task to process file and update database"""
     db = SessionLocal()

@@ -2,10 +2,25 @@ import React, { useState } from 'react';
 import { CloudArrowUpIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 
-const FileUpload = ({ onUploadSuccess }) => {
+const FileUpload = ({ onUploadSuccess, serverStatus }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadSeconds, setUploadSeconds] = useState(0);
+
+  // Track upload elapsed time to detect Render cold-start delays
+  React.useEffect(() => {
+    let interval;
+    if (uploading) {
+      setUploadSeconds(0);
+      interval = setInterval(() => {
+        setUploadSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setUploadSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [uploading]);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -117,7 +132,19 @@ const FileUpload = ({ onUploadSuccess }) => {
 
               <div className="space-y-2 w-full max-w-md mx-auto">
                 <p className="text-lg text-white font-medium">
-                  {uploading ? "Uploading files..." : dragActive ? "Drop your files here" : "Upload your files to get started"}
+                  {uploading ? (
+                    uploadSeconds > 3 || serverStatus === 'warming' ? (
+                      <span className="text-amber-300">
+                        ⚡ Waking up backend on Render... please wait (~30s)
+                      </span>
+                    ) : (
+                      "Uploading files..."
+                    )
+                  ) : dragActive ? (
+                    "Drop your files here"
+                  ) : (
+                    "Upload your files to get started"
+                  )}
                 </p>
 
                 {uploading && (
@@ -135,6 +162,12 @@ const FileUpload = ({ onUploadSuccess }) => {
                     <p className="text-sm text-slate-400">
                       Drag & drop files here, or click to browse
                     </p>
+                    {serverStatus === 'warming' && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                        Backend is waking up in the background. You can select your file now!
+                      </div>
+                    )}
                     <p className="text-xs text-slate-500 mt-2">
                       Supports CSV, Excel, PDF • Multiple files allowed
                     </p>

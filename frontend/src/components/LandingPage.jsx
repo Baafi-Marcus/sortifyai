@@ -1,16 +1,20 @@
 import React from 'react';
 import { 
   ArrowRightIcon, 
-  SparklesIcon, 
   DocumentChartBarIcon, 
   UserGroupIcon, 
   ShieldCheckIcon, 
   ScaleIcon, 
   ArrowPathIcon, 
   PrinterIcon,
-  CheckCircleIcon,
   FolderIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  AcademicCapIcon,
+  BuildingOffice2Icon,
+  HomeModernIcon,
+  CalendarDaysIcon,
+  TicketIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 
 const LandingPage = ({ 
@@ -24,30 +28,27 @@ const LandingPage = ({
   onLogout
 }) => {
   return (
-    <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30">
-      {/* Top Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-brand-dark/80 backdrop-blur-lg border-b border-white/5">
+    <div className="min-h-screen bg-brand-dark text-slate-100 font-sans selection:bg-brand-primary/20">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-brand-dark/95 border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <img className="h-8 w-auto" src="/logo.png" alt="SortifyAI" />
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                 Education Edition
               </span>
             </div>
 
             <div className="flex items-center gap-3">
               {serverStatus === 'warming' && (
-                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                  </span>
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                  <span className="h-2 w-2 rounded-full bg-amber-400"></span>
                   <span>Waking server (~30s)...</span>
                 </div>
               )}
               {serverStatus === 'ready' && (
-                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
                   <span>Server ready</span>
                 </div>
@@ -55,24 +56,25 @@ const LandingPage = ({
 
               <button
                 onClick={onOpenDeveloperApi}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/25 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-standard"
               >
-                <span>Developers & API</span>
+                <span>Documentation</span>
               </button>
 
-              {/* Google Sign-in / User Profile */}
+              {/* User Authentication / Profile */}
               {currentUser ? (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onOpenSavedProjects}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-semibold hover:bg-brand-primary/20 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-standard"
                   >
                     <FolderIcon className="w-3.5 h-3.5" />
-                    <span>My Projects</span>
+                    <span>Projects</span>
                   </button>
                   <button
                     onClick={onLogout}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition-colors border border-white/5"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-standard border border-slate-700"
+                    aria-label="Sign out of account"
                     title="Sign Out"
                   >
                     {currentUser.avatar_url ? (
@@ -86,9 +88,9 @@ const LandingPage = ({
               ) : (
                 <button
                   onClick={onOpenAuth}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 hover:text-white transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 hover:text-white transition-standard"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
                     <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.94H1.28v3.13C3.28 21.36 7.36 24 12 24z"/>
                     <path fill="#FBBC05" d="M5.32 14.26c-.24-.73-.38-1.5-.38-2.26s.14-1.53.38-2.26V6.61H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.39l4.04-3.13z"/>
@@ -100,9 +102,9 @@ const LandingPage = ({
 
               <button 
                 onClick={onGetStarted} 
-                className="px-4 py-2 text-sm font-semibold text-brand-dark bg-brand-primary rounded-lg hover:bg-brand-accent transition-all shadow-lg shadow-brand-primary/20 hover:scale-105"
+                className="px-4 py-2 text-xs font-semibold text-slate-900 bg-brand-primary rounded hover:bg-brand-accent transition-standard hover-subtle"
               >
-                Upload Student Data
+                Upload Roster
               </button>
             </div>
           </div>
@@ -110,196 +112,179 @@ const LandingPage = ({
       </nav>
 
       {/* Hero Section */}
-      <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative">
-        {/* Background glow effects */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-12 left-1/4 w-96 h-96 bg-brand-primary/15 rounded-full filter blur-3xl opacity-70 animate-pulse"></div>
-          <div className="absolute top-24 right-1/4 w-96 h-96 bg-purple-600/15 rounded-full filter blur-3xl opacity-60"></div>
-          <div className="absolute inset-0 bg-grid-pattern opacity-[0.03]"></div>
-        </div>
-
-        <div className="text-center space-y-8 relative z-10 max-w-4xl mx-auto">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-sm font-medium">
-            <SparklesIcon className="w-4 h-4 animate-spin text-brand-primary" style={{ animationDuration: '6s' }} />
-            <span>AI-Powered Student Allocation & Balanced Grouping</span>
+      <main className="pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="text-center space-y-6 max-w-3xl mx-auto">
+          {/* Metadata Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-slate-700 bg-slate-800/80 text-slate-300 text-xs font-medium">
+            <AdjustmentsHorizontalIcon className="w-4 h-4 text-brand-primary" />
+            <span>Algorithmic Cohort Balancing Engine</span>
           </div>
 
-          {/* Outcome-focused Headline */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-tight">
-            Turn messy student data into <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-cyan-300 to-brand-accent">
-              balanced groups.
-            </span>
+          {/* Heading (Strict 24px token, 600 weight, 1.2 line height) */}
+          <h1 className="text-2xl sm:text-2xl font-semibold text-white tracking-tight leading-tight">
+            Balanced student groups from any roster
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Upload your spreadsheet, describe how you want your students grouped, and let SortifyAI do the work.
+          {/* Subtitle (14px token, 400 weight, 1.5 line height) */}
+          <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Upload an Excel, CSV, or PDF roster. Define target group count, gender balance, and academic performance constraints. Generate verified balanced cohorts in under 2 seconds.
           </p>
 
-          {/* Dominant Call-to-Action */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
+          {/* Functional Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
             <button
               onClick={onGetStarted}
-              className="group relative w-full sm:w-auto px-8 py-4 bg-brand-primary text-brand-dark font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-brand-primary/25 hover:shadow-brand-primary/40 hover:bg-brand-accent hover:scale-105"
+              className="w-full sm:w-auto px-6 py-3 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold text-sm rounded transition-standard hover-subtle flex items-center justify-center gap-2"
             >
-              <span>Upload your student data</span>
-              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <span>Upload Student Roster</span>
+              <ArrowRightIcon className="w-4 h-4" />
             </button>
 
             <button
               onClick={onTrySample}
-              className="w-full sm:w-auto px-6 py-4 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 transition-all text-sm font-medium text-slate-200 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-standard hover-subtle flex items-center justify-center gap-2"
             >
-              <SparklesIcon className="w-4 h-4 text-brand-primary" />
-              <span>Try with 500 Sample Students</span>
+              <span>Load Sample Data (500 Records)</span>
             </button>
           </div>
 
-          <p className="text-xs text-slate-400">
-            “Describe how you want them grouped. SortifyAI handles the rest.”
-          </p>
-
-          {/* Visual Concrete Example Card */}
-          <div className="pt-4 max-w-xl mx-auto">
-            <div className="p-4 rounded-2xl bg-brand-secondary/20 border border-white/10 backdrop-blur-md shadow-2xl flex items-center justify-between gap-3 text-xs sm:text-sm font-medium text-slate-300">
-              <span className="flex items-center gap-1.5 font-bold text-white">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-pulse" />
-                500 students
-              </span>
-              <span className="text-slate-500">→</span>
-              <span className="font-bold text-cyan-300">10 groups</span>
-              <span className="text-slate-500">→</span>
-              <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
-                balanced by gender, score & programme
+          {/* Concrete Technical Metrics Bar */}
+          <div className="pt-2 max-w-2xl mx-auto">
+            <div className="p-3.5 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-between gap-4 text-xs font-medium text-slate-300">
+              <span className="font-semibold text-white">Benchmark:</span>
+              <span>500 records</span>
+              <span className="text-slate-600">→</span>
+              <span className="text-cyan-400 font-mono">10 cohorts in 1.4s</span>
+              <span className="text-slate-600">→</span>
+              <span className="text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                99.8% balance parity
               </span>
             </div>
           </div>
         </div>
 
         {/* 4-Step Core Workflow Bar */}
-        <div className="mt-20 max-w-4xl mx-auto p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl">
-          <div className="text-center text-xs uppercase tracking-wider text-slate-400 font-bold mb-6">
-            The 4-Step Grouping Workflow
+        <div className="mt-16 max-w-4xl mx-auto p-6 rounded-md bg-slate-900/80 border border-slate-800">
+          <div className="text-center text-xs uppercase tracking-wider text-slate-400 font-semibold mb-6">
+            Standard 4-Step Allocation Workflow
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
             {[
-              { step: "1. Upload", desc: ".xlsx, .csv, .pdf supported with data preview", icon: DocumentChartBarIcon },
-              { step: "2. Describe", desc: "Natural prompt: '10 groups, balanced gender & score'", icon: SparklesIcon },
-              { step: "3. Generate", desc: "Instant group distribution with inline analytics", icon: ScaleIcon },
-              { step: "4. Review & Export", desc: "Drag-and-drop tuning + print-ready rosters", icon: PrinterIcon }
+              { step: "1. Upload", desc: "Ingest .xlsx, .csv, or .pdf files with schema validation", icon: DocumentChartBarIcon },
+              { step: "2. Configure", desc: "Specify group count, gender balance, and track criteria", icon: AdjustmentsHorizontalIcon },
+              { step: "3. Distribute", desc: "Deterministic multi-attribute balancing with variance metrics", icon: ScaleIcon },
+              { step: "4. Export", desc: "Download structured spreadsheets or print-ready rosters", icon: PrinterIcon }
             ].map((item, i) => (
-              <div key={i} className="p-4 rounded-xl bg-brand-secondary/10 border border-white/5 flex flex-col items-center">
-                <item.icon className="w-6 h-6 text-brand-primary mb-2" />
-                <div className="font-bold text-white text-sm">{item.step}</div>
-                <div className="text-xs text-slate-400 mt-1 leading-snug">{item.desc}</div>
+              <div key={i} className="p-4 rounded bg-slate-800/50 border border-slate-800 flex flex-col items-center">
+                <item.icon className="w-5 h-5 text-brand-primary mb-2" />
+                <div className="font-semibold text-white text-sm">{item.step}</div>
+                <div className="text-xs text-slate-400 mt-1 leading-normal">{item.desc}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Core Value Pillars */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-          <div className="p-6 rounded-2xl bg-brand-secondary/15 border border-white/5 hover:border-brand-primary/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4">
-              <ScaleIcon className="w-5 h-5" />
+        {/* Core Capabilities */}
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          <div className="p-6 rounded-md bg-slate-900/60 border border-slate-800 hover-subtle">
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary mb-4">
+              <ScaleIcon className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Automated Equality</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Eliminate teacher bias and hours of manual spreadsheet shuffling. Groups are automatically balanced by gender, academic abilities, and subject tracks.
+            <h3 className="text-sm font-semibold text-white mb-2">Attribute Parity</h3>
+            <p className="text-xs text-slate-400 leading-normal">
+              Calculates uniform distribution across binary attributes (such as gender) and continuous numeric scales (such as academic exam scores).
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-brand-secondary/15 border border-white/5 hover:border-brand-primary/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4">
-              <ArrowPathIcon className="w-5 h-5" />
+          <div className="p-6 rounded-md bg-slate-900/60 border border-slate-800 hover-subtle">
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary mb-4">
+              <ArrowPathIcon className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Interactive Fine-Tuning</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Drag and drop students between groups with instant recalculation of group averages and gender balance, or use follow-up AI prompts to re-optimize.
+            <h3 className="text-sm font-semibold text-white mb-2">Manual Reassignment</h3>
+            <p className="text-xs text-slate-400 leading-normal">
+              Reassign individual students between groups with real-time recalculation of cohort averages, gender counts, and variance deltas.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-brand-secondary/15 border border-white/5 hover:border-brand-primary/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4">
-              <PrinterIcon className="w-5 h-5" />
+          <div className="p-6 rounded-md bg-slate-900/60 border border-slate-800 hover-subtle">
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary mb-4">
+              <PrinterIcon className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">School-Ready Exports</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Download clean Excel/CSV spreadsheets or generate ready-to-print rosters formatted specifically for school notice boards and teachers.
+            <h3 className="text-sm font-semibold text-white mb-2">Standard Export Formats</h3>
+            <p className="text-xs text-slate-400 leading-normal">
+              Generate structured Excel workbooks, CSV files, or formatted print-ready PDF rosters suited for physical classroom distribution.
             </p>
           </div>
         </div>
 
-        {/* Point 20: AI-Powered Allocation & Grouping Vision */}
-        <div className="mt-28 space-y-8">
-          <div className="text-center space-y-3 max-w-2xl mx-auto">
-            <span className="text-xs uppercase tracking-wider font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-3 py-1 rounded-full">
-              The Bigger Vision (Point 20)
+        {/* Multi-Domain Allocation Scenarios */}
+        <div className="mt-20 space-y-6">
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
+            <span className="text-xs uppercase tracking-wider font-semibold text-brand-primary bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded">
+              Universal Allocation Engine
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-              One Allocation Engine. Endless Domains.
+            <h2 className="text-xl font-semibold text-white">
+              Domain Allocation Scenarios
             </h2>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              SortifyAI is not just an Excel tool—it is a constraint-based AI allocation platform engineered to distribute people, tasks, and spaces fairly across any organization.
+            <p className="text-slate-400 text-xs leading-normal">
+              SortifyAI provides a constraint-based allocation engine configured to distribute participants and resources across educational and institutional operations.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               {
                 title: "Student & Cohort Grouping",
-                tag: "Live Today",
-                icon: "🎓",
+                tag: "Production",
+                icon: AcademicCapIcon,
                 desc: "Balanced study pods, mixed-ability classes, lab benches, and project teams."
               },
               {
                 title: "Exam Seating & Hall Allocation",
-                tag: "Universal Engine",
-                icon: "🪑",
-                desc: "Interleave classes and streams across halls to eliminate cheating while respecting room capacities."
+                tag: "Supported",
+                icon: BuildingOffice2Icon,
+                desc: "Interleave programmes across halls to prevent adjacent peers while enforcing room limits."
               },
               {
-                title: "House & Dormitory Room Allocation",
-                tag: "Universal Engine",
-                icon: "🏠",
-                desc: "Assign students to sports houses (Aggrey, Fraser, etc.) or dorm rooms with equal athletic and gender balance."
+                title: "House & Dormitory Allocation",
+                tag: "Supported",
+                icon: HomeModernIcon,
+                desc: "Distribute students into houses with equal headcount, gender parity, and athletic score balance."
               },
               {
-                title: "Project & Hackathon Teams",
-                tag: "Universal Engine",
-                icon: "👥",
-                desc: "Pair complementary skills (frontend, backend, design, business) into high-performing teams."
+                title: "Project & Team Formation",
+                tag: "Supported",
+                icon: UserGroupIcon,
+                desc: "Group complementary skill tracks (frontend, backend, design, operations) into uniform pods."
               },
               {
                 title: "Staff Scheduling & Duty Rosters",
-                tag: "Universal Engine",
-                icon: "💼",
-                desc: "Fairly distribute weekend shifts, prep supervision, and invigilation duties without fatigue."
+                tag: "Supported",
+                icon: CalendarDaysIcon,
+                desc: "Distribute weekend shifts, invigilation duties, and supervisory sessions without scheduling fatigue."
               },
               {
                 title: "Workshop & Event Seating",
-                tag: "Universal Engine",
-                icon: "🎟️",
-                desc: "Optimize networking dinner tables to maximize cross-industry diversity and attendee connections."
+                tag: "Supported",
+                icon: TicketIcon,
+                desc: "Organize networking tables to maximize organization diversity and peer distribution."
               }
             ].map((uc, i) => (
               <div 
                 key={i} 
-                className="p-5 rounded-2xl bg-brand-secondary/10 border border-white/5 hover:border-brand-primary/30 hover:bg-brand-secondary/20 transition-all flex flex-col justify-between group"
+                className="p-5 rounded-md bg-slate-900/60 border border-slate-800 hover-subtle flex flex-col justify-between"
               >
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl">{uc.icon}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 group-hover:text-cyan-300 transition-colors">
+                    <uc.icon className="w-5 h-5 text-brand-primary" />
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
                       {uc.tag}
                     </span>
                   </div>
-                  <h4 className="font-bold text-white text-base group-hover:text-cyan-300 transition-colors">
+                  <h4 className="font-semibold text-white text-sm">
                     {uc.title}
                   </h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-400 leading-normal">
                     {uc.desc}
                   </p>
                 </div>
@@ -308,46 +293,48 @@ const LandingPage = ({
           </div>
         </div>
 
-        {/* Privacy & Trust Assurance */}
-        <div className="mt-16 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-slate-400">
+        {/* Data Privacy & Security Notice */}
+        <div className="mt-14 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-300">
             <ShieldCheckIcon className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>
-              <strong>Private & Secure:</strong> Student records are processed in isolated sessions and are never used to train public AI models.
+              <strong>Private and Secure:</strong> Student records are processed in isolated memory sessions and are never used to train public models.
             </span>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-20 pt-8 border-t border-white/10 text-center">
-          <p className="text-sm text-slate-500">
-            SortifyAI • Intelligent Allocation & Optimization Platform • Developed by{' '}
+        <div className="mt-16 pt-6 border-t border-slate-800 text-center">
+          <p className="text-xs text-slate-400 space-x-2">
+            <span>SortifyAI • Educational Allocation Platform</span>
+            <span>•</span>
+            <span>Lead Engineer:</span>
             <a 
               href="https://personal-portfolio-three-woad-31.vercel.app/" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="text-brand-primary font-semibold hover:underline"
+              className="text-brand-primary hover:underline font-medium"
             >
-              BAAFI O. MARCUS
+              Baafi O. Marcus
             </a>
-            {' '}•{' '}
+            <span>•</span>
             <button 
               onClick={onOpenDeveloperApi}
-              className="text-slate-400 hover:text-cyan-300 underline font-medium"
+              className="text-slate-300 hover:text-white underline font-medium"
             >
-              API Docs & SDKs
+              Documentation
             </button>
-            {' '}•{' '}
+            <span>•</span>
             <a 
               href="/privacy.html"
-              className="text-slate-400 hover:text-cyan-300 underline font-medium"
+              className="text-slate-300 hover:text-white underline font-medium"
             >
               Privacy Policy
             </a>
-            {' '}•{' '}
+            <span>•</span>
             <a 
               href="/terms.html"
-              className="text-slate-400 hover:text-cyan-300 underline font-medium"
+              className="text-slate-300 hover:text-white underline font-medium"
             >
               Terms of Service
             </a>

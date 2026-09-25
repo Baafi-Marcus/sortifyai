@@ -15,62 +15,66 @@ const CheckGroupsView = ({ report, onReoptimize, onClose }) => {
   const getBadge = (status) => {
     if (status === 'Good') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
-          <CheckCircleIcon className="w-3.5 h-3.5" />
+        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
+          <CheckCircleIcon className="w-3 h-3" />
           <span>Balanced</span>
         </span>
       );
     }
     return (
-      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center gap-1">
-        <ExclamationTriangleIcon className="w-3.5 h-3.5" />
-        <span>Needs Adjustment</span>
+      <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center gap-1">
+        <ExclamationTriangleIcon className="w-3 h-3" />
+        <span>Imbalanced</span>
       </span>
     );
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
-      <div className="p-8 rounded-3xl bg-brand-secondary/20 border border-white/10 shadow-2xl backdrop-blur-xl space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+    <div className="max-w-2xl mx-auto space-y-5 animate-fadeIn">
+      <div className="p-6 sm:p-8 rounded-md bg-slate-900 border border-slate-700 space-y-5">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary">
-              <ScaleIcon className="w-5 h-5" />
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary">
+              <ScaleIcon className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">Group Balance Audit Report</h3>
+              <h3 className="text-base font-semibold text-white">Group Balance Audit</h3>
               <p className="text-xs text-slate-400">
-                Audited <strong className="text-white">{total_students} students</strong> across <strong className="text-cyan-300">{total_groups} existing groups</strong> (Column: "{group_column}")
+                Analyzed <strong className="text-white">{total_students} records</strong> across <strong className="text-cyan-400">{total_groups} cohorts</strong> (Column: "{group_column}")
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-lg">
+          <button 
+            onClick={onClose} 
+            aria-label="Close group audit view"
+            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-standard"
+          >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scorecard Table (Point 19) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
-            <span className="text-xs text-slate-400 uppercase font-semibold">Group Size</span>
+        {/* Scorecard Table */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3.5 rounded bg-slate-800/40 border border-slate-800 space-y-1.5">
+            <span className="text-[11px] text-slate-400 uppercase font-semibold">Cohort Sizes</span>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-white">Equal Sizing</span>
+              <span className="text-xs font-semibold text-white">Headcount Parity</span>
               {getBadge(rep.group_size)}
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
-            <span className="text-xs text-slate-400 uppercase font-semibold">Gender Ratio</span>
+          <div className="p-3.5 rounded bg-slate-800/40 border border-slate-800 space-y-1.5">
+            <span className="text-[11px] text-slate-400 uppercase font-semibold">Gender Ratio</span>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-white">M/F Parity</span>
+              <span className="text-xs font-semibold text-white">M/F Parity</span>
               {getBadge(rep.gender_balance)}
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
-            <span className="text-xs text-slate-400 uppercase font-semibold">Academic Parity</span>
+          <div className="p-3.5 rounded bg-slate-800/40 border border-slate-800 space-y-1.5">
+            <span className="text-[11px] text-slate-400 uppercase font-semibold">Academic Spread</span>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-white">Score Spread</span>
+              <span className="text-xs font-semibold text-white">Score Parity</span>
               {getBadge(rep.academic_balance)}
             </div>
           </div>
@@ -78,10 +82,10 @@ const CheckGroupsView = ({ report, onReoptimize, onClose }) => {
 
         {/* Detailed Insights */}
         <div className="space-y-2">
-          <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider">Audit Findings</h4>
-          <div className="space-y-2">
+          <h4 className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Audit Findings</h4>
+          <div className="space-y-1.5">
             {rep.insights?.map((insight, idx) => (
-              <p key={idx} className="p-3 rounded-xl bg-brand-dark/50 border border-white/5 text-xs text-slate-300 flex items-start gap-2">
+              <p key={idx} className="p-2.5 rounded bg-slate-950 border border-slate-800 text-xs text-slate-300 flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">•</span>
                 <span>{insight}</span>
               </p>
@@ -89,20 +93,20 @@ const CheckGroupsView = ({ report, onReoptimize, onClose }) => {
           </div>
         </div>
 
-        {/* Call to action */}
-        <div className="pt-2 flex items-center justify-end gap-3">
+        {/* Actions */}
+        <div className="pt-2 flex items-center justify-end gap-2.5">
           <button
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5"
+            className="px-3.5 py-2 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-standard"
           >
             Dismiss
           </button>
           <button
             onClick={onReoptimize}
-            className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-xs font-bold hover:bg-brand-accent transition-all flex items-center gap-1.5 shadow-lg shadow-brand-primary/20"
+            className="px-4 py-2 bg-brand-primary hover:bg-brand-accent text-slate-900 rounded text-xs font-semibold transition-standard hover-subtle flex items-center gap-1.5"
           >
-            <ArrowPathIcon className="w-4 h-4" />
-            <span>Rebalance These Groups with SortifyAI</span>
+            <ArrowPathIcon className="w-3.5 h-3.5" />
+            <span>Rebalance Cohorts with Engine</span>
           </button>
         </div>
       </div>

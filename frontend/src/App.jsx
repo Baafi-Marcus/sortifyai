@@ -348,29 +348,29 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30 flex flex-col">
-      {/* Studio Header (shown when inside app workflow, not on landing page) */}
+    <div className="min-h-screen bg-brand-dark text-slate-100 font-sans selection:bg-brand-primary/20 flex flex-col">
+      {/* Studio Header (shown when inside app workflow) */}
       {currentView !== 'landing' && (
-        <header className="sticky top-0 z-40 bg-brand-dark/90 backdrop-blur-xl border-b border-white/10 no-print">
+        <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 no-print">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             {/* Logo */}
             <div 
               onClick={() => setCurrentView('landing')}
-              className="flex items-center gap-3 cursor-pointer group"
+              className="flex items-center gap-2.5 cursor-pointer group"
             >
-              <img className="h-8 w-auto group-hover:scale-105 transition-transform" src="/logo.png" alt="SortifyAI" />
-              <span className="font-extrabold text-base tracking-tight text-white hidden sm:inline">
+              <img className="h-7 w-auto" src="/logo.png" alt="SortifyAI" />
+              <span className="font-semibold text-sm tracking-tight text-white hidden sm:inline">
                 Sortify<span className="text-brand-primary">AI</span>
               </span>
             </div>
 
-            {/* Workflow Breadcrumb (Point 1) */}
-            <div className="hidden md:flex items-center gap-2 text-xs font-semibold">
+            {/* Workflow Breadcrumb */}
+            <div className="hidden md:flex items-center gap-2 text-xs font-medium">
               <button 
                 onClick={() => setCurrentView('upload')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded transition-standard ${
                   currentView === 'upload' 
-                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/30 font-bold" 
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-semibold" 
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -380,9 +380,9 @@ const App = () => {
               <button 
                 onClick={() => fileData && setCurrentView('prompt')}
                 disabled={!fileData}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors disabled:opacity-40 ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded transition-standard disabled:opacity-40 ${
                   currentView === 'prompt' 
-                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/30 font-bold" 
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-semibold" 
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -392,9 +392,9 @@ const App = () => {
               <button 
                 onClick={() => groups.length > 0 && setCurrentView('results')}
                 disabled={groups.length === 0}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors disabled:opacity-40 ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded transition-standard disabled:opacity-40 ${
                   currentView === 'results' || currentView === 'processing'
-                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/30 font-bold" 
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-semibold" 
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -405,11 +405,8 @@ const App = () => {
             {/* Controls */}
             <div className="flex items-center gap-2 sm:gap-3">
               {serverStatus === 'warming' && (
-                <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                  </span>
+                <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                  <span className="h-2 w-2 rounded-full bg-amber-400"></span>
                   <span>Waking server...</span>
                 </div>
               )}
@@ -417,7 +414,7 @@ const App = () => {
               {fileData && (
                 <button
                   onClick={handleReset}
-                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition-colors"
+                  className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-standard border border-slate-700"
                 >
                   New Project
                 </button>
@@ -425,27 +422,28 @@ const App = () => {
 
               <button
                 onClick={() => setDeveloperApiOpen(true)}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 hover:text-white transition-colors border border-white/5"
-                title="SortifyAI Engine API Docs & SDKs"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-standard border border-slate-700"
+                title="SortifyAI Engine Documentation"
               >
                 <CodeBracketIcon className="w-4 h-4 text-cyan-400" />
-                <span className="hidden md:inline">API & Docs</span>
+                <span className="hidden md:inline">Documentation</span>
               </button>
 
-              {/* Google Sign-in / User Profile */}
+              {/* User Authentication / Profile */}
               {currentUser ? (
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowSavedProjectsModal(true)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-semibold hover:bg-brand-primary/20 transition-colors"
-                    title="My Saved Cloud Projects"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-standard"
+                    title="My Cloud Projects"
                   >
-                    <FolderIcon className="w-4 h-4" />
+                    <FolderIcon className="w-3.5 h-3.5" />
                     <span className="hidden md:inline">Projects</span>
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition-colors border border-white/5"
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-standard border border-slate-700"
+                    aria-label="Sign out of account"
                     title="Sign Out"
                   >
                     {currentUser.avatar_url ? (
@@ -459,10 +457,10 @@ const App = () => {
               ) : (
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 hover:text-white transition-all"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 hover:text-white transition-standard"
                   title="Sign In with Google"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
                     <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.94H1.28v3.13C3.28 21.36 7.36 24 12 24z"/>
                     <path fill="#FBBC05" d="M5.32 14.26c-.24-.73-.38-1.5-.38-2.26s.14-1.53.38-2.26V6.61H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.39l4.04-3.13z"/>
@@ -474,10 +472,11 @@ const App = () => {
 
               <button
                 onClick={() => setFeedbackOpen(true)}
-                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                aria-label="Give system feedback"
+                className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-standard border border-slate-700"
                 title="Give Feedback"
               >
-                <ChatBubbleBottomCenterTextIcon className="w-5 h-5" />
+                <ChatBubbleBottomCenterTextIcon className="w-4 h-4" />
               </button>
             </div>
           </div>

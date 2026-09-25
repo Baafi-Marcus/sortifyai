@@ -3,13 +3,12 @@ import {
   ArrowDownTrayIcon, 
   PrinterIcon, 
   ArrowUturnLeftIcon, 
-  SparklesIcon, 
   UserGroupIcon,
-  AcademicCapIcon,
   ChevronDownIcon,
-  ArrowsRightLeftIcon,
   CheckBadgeIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 const ResultsStudio = ({ 
@@ -21,7 +20,6 @@ const ResultsStudio = ({
   onSaveToCloud,
   totalRows 
 }) => {
-  // Version history & local group state for instant manual adjustments (Points 10 & 12)
   const [history, setHistory] = useState([initialGroups]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [refinePrompt, setRefinePrompt] = useState("");
@@ -30,7 +28,7 @@ const ResultsStudio = ({
 
   const currentGroups = history[historyIndex] || initialGroups;
 
-  // Compute analytics dynamically so drag & drop / moves update instantaneously (Point 6 & 10)
+  // Compute analytics dynamically
   const getGroupAnalytics = (items = []) => {
     const count = items.length;
     if (count === 0) {
@@ -46,7 +44,6 @@ const ResultsStudio = ({
     const progs = {};
 
     items.forEach(it => {
-      // Find score
       for (const [k, v] of Object.entries(it)) {
         const kl = k.toLowerCase();
         if (['score', 'mark', 'grade', 'total', 'average'].some(w => kl.includes(w))) {
@@ -83,7 +80,7 @@ const ResultsStudio = ({
     };
   };
 
-  // Move student between groups (Points 9 & 10)
+  // Move student between groups
   const handleMoveStudent = (student, fromGroupIdx, toGroupIdx) => {
     if (fromGroupIdx === toGroupIdx) return;
 
@@ -103,17 +100,15 @@ const ResultsStudio = ({
       return g;
     });
 
-    // Push new version to history
     const nextHistory = [...history.slice(0, historyIndex + 1), newGroups];
     setHistory(nextHistory);
     setHistoryIndex(nextHistory.length - 1);
 
-    // Show temporary notice
     setFeedbackNotice(`Moved student to ${newGroups[toGroupIdx].name}. Group balance updated.`);
     setTimeout(() => setFeedbackNotice(null), 3500);
   };
 
-  // Undo functionality (Point 12)
+  // Undo functionality
   const handleUndo = () => {
     if (historyIndex > 0) {
       setHistoryIndex(prev => prev - 1);
@@ -124,7 +119,7 @@ const ResultsStudio = ({
 
   const handleRefineSubmit = async (e) => {
     e.preventDefault();
-    if (!refinePrompt.trim()) return;
+    if (!refinePrompt.trim() || refining) return;
     setRefining(true);
     await onRefineWithAI(refinePrompt);
     setRefinePrompt("");
@@ -135,122 +130,118 @@ const ResultsStudio = ({
   const avgGroupSize = currentGroups.length > 0 ? (totalAssigned / currentGroups.length).toFixed(1) : 0;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-fadeIn">
-      {/* Top Banner & Action Controls (Point 5) */}
-      <div className="p-6 rounded-3xl bg-brand-secondary/20 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xl backdrop-blur-xl">
+    <div className="max-w-7xl mx-auto space-y-6 pb-28 animate-fadeIn">
+      {/* Top Banner & Action Controls */}
+      <div className="p-5 rounded-md bg-slate-900 border border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <span className="flex h-3 w-3 rounded-full bg-emerald-400" />
-            <h2 className="text-2xl font-black text-white">Grouping Complete</h2>
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <h2 className="text-xl font-semibold text-white">Cohort Allocation Generated</h2>
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
               Version {historyIndex + 1}
             </span>
           </div>
-          <p className="text-sm text-slate-300 mt-1">
-            <strong>{totalAssigned} students</strong> allocated into <strong>{currentGroups.length} balanced groups</strong>
+          <p className="text-xs text-slate-400 mt-1">
+            <strong>{totalAssigned} records</strong> allocated across <strong>{currentGroups.length} cohorts</strong>
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          {/* Undo Button (Point 12) */}
           <button
             onClick={handleUndo}
             disabled={historyIndex === 0}
-            className="px-3.5 py-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-standard disabled:opacity-30 disabled:cursor-not-allowed"
             title="Undo manual adjustments"
           >
-            <ArrowUturnLeftIcon className="w-4 h-4" />
+            <ArrowUturnLeftIcon className="w-3.5 h-3.5" />
             <span>Undo</span>
           </button>
 
-          {/* Printable Roster (Point 11) */}
           <button
             onClick={onPrintRoster}
-            className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            className="px-3.5 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-standard hover-subtle"
           >
-            <PrinterIcon className="w-4 h-4 text-cyan-300" />
+            <PrinterIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span>Print Rosters</span>
           </button>
 
-          {/* Save to Cloud Button */}
           {onSaveToCloud && (
             <button
               onClick={() => onSaveToCloud(currentGroups)}
-              className="px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-brand-primary/10 hover:scale-[1.02]"
+              className="px-3.5 py-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-medium flex items-center gap-1.5 transition-standard hover-subtle"
               title="Save project to your Neon PostgreSQL cloud"
             >
-              <CloudArrowUpIcon className="w-4 h-4" />
+              <CloudArrowUpIcon className="w-3.5 h-3.5" />
               <span>Save to Cloud</span>
             </button>
           )}
 
-          {/* Export Dropdown (Point 11) */}
           <button
             onClick={onOpenExport}
-            className="px-5 py-2 bg-brand-primary text-brand-dark rounded-xl font-bold text-xs hover:bg-brand-accent transition-all flex items-center gap-1.5 shadow-lg shadow-brand-primary/20 hover:scale-105"
+            className="px-4 py-1.5 bg-brand-primary hover:bg-brand-accent text-slate-900 rounded font-semibold text-xs transition-standard hover-subtle flex items-center gap-1.5"
           >
-            <ArrowDownTrayIcon className="w-4 h-4" />
-            <span>Export ▼</span>
+            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+            <span>Export Roster</span>
           </button>
         </div>
       </div>
 
-      {/* Decision Summary Pill (Point 4) */}
+      {/* Decision Summary Pill */}
       {decisionSummary && (
-        <div className="px-5 py-3 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="px-4 py-2.5 rounded-md bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-slate-400">
             <CheckBadgeIcon className="w-4 h-4 text-brand-primary" />
-            <strong className="text-white uppercase tracking-wider">Grouping Criteria:</strong>
+            <strong className="text-white uppercase tracking-wider text-[11px]">Applied Rules:</strong>
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-slate-300">
-            <span>Primary: <strong className="text-cyan-300">{decisionSummary.primary}</strong></span>
+          <div className="flex flex-wrap items-center gap-3 text-slate-300">
+            <span>Primary: <strong className="text-cyan-400">{decisionSummary.primary}</strong></span>
             <span className="text-slate-600">•</span>
-            <span>Secondary: <strong className="text-cyan-300">{decisionSummary.secondary}</strong></span>
+            <span>Secondary: <strong className="text-cyan-400">{decisionSummary.secondary}</strong></span>
             <span className="text-slate-600">•</span>
             <span>Balance: <strong className="text-emerald-400">{decisionSummary.balance}</strong></span>
             <span className="text-slate-600">•</span>
-            <span>Target Groups: <strong className="text-white">{currentGroups.length}</strong></span>
+            <span>Cohorts: <strong className="text-white">{currentGroups.length}</strong></span>
           </div>
         </div>
       )}
 
-      {/* Metric Summary Cards (Point 5) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* Metric Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Students", value: totalAssigned, color: "text-white" },
-          { label: "Groups Created", value: currentGroups.length, color: "text-cyan-300" },
-          { label: "Average / Group", value: avgGroupSize, color: "text-emerald-400" },
-          { label: "Unassigned Students", value: 0, color: "text-slate-400" }
+          { label: "Total Assigned", value: totalAssigned, color: "text-white" },
+          { label: "Cohorts Created", value: currentGroups.length, color: "text-cyan-400" },
+          { label: "Average / Cohort", value: avgGroupSize, color: "text-emerald-400" },
+          { label: "Unassigned", value: 0, color: "text-slate-400" }
         ].map((card, idx) => (
-          <div key={idx} className="p-5 rounded-2xl bg-brand-secondary/15 border border-white/5 space-y-1">
-            <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">{card.label}</span>
-            <p className={`text-2xl sm:text-3xl font-black ${card.color}`}>{card.value}</p>
+          <div key={idx} className="p-4 rounded-md bg-slate-900 border border-slate-800 space-y-0.5">
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">{card.label}</span>
+            <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Floating Notice when student moved */}
+      {/* Feedback Notice */}
       {feedbackNotice && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-fadeIn">
+        <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center justify-between animate-fadeIn">
           <span>{feedbackNotice}</span>
-          <button onClick={() => setFeedbackNotice(null)} className="text-emerald-400 hover:text-white">✕</button>
+          <button onClick={() => setFeedbackNotice(null)} className="text-emerald-400 hover:text-white" aria-label="Dismiss notice">✕</button>
         </div>
       )}
 
-      {/* Groups Display Grid with Group Analytics (Points 5, 6, 10) */}
-      <div className="space-y-6">
+      {/* Groups Display Grid */}
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <UserGroupIcon className="w-5 h-5 text-brand-primary" />
-            <span>Group Rosters & Inline Analytics</span>
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <UserGroupIcon className="w-4 h-4 text-brand-primary" />
+            <span>Cohort Rosters & Distribution Analytics</span>
           </h3>
           <p className="text-xs text-slate-400">
-            Use the "Move" menu on any student row to adjust groups manually.
+            Use the "Move" selector to adjust records manually.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {currentGroups.map((group, gIdx) => {
             const items = group.items || [];
             const analytics = getGroupAnalytics(items);
@@ -259,46 +250,44 @@ const ResultsStudio = ({
             return (
               <div 
                 key={gIdx} 
-                className="rounded-3xl bg-brand-secondary/15 border border-white/10 overflow-hidden flex flex-col shadow-xl hover:border-brand-primary/30 transition-all"
+                className="rounded-md bg-slate-900 border border-slate-800 overflow-hidden flex flex-col hover:border-slate-700 transition-standard"
               >
-                {/* Group Card Header */}
-                <div className="p-5 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-brand-primary/10 border border-brand-primary/20 text-brand-primary flex items-center justify-center font-bold text-sm">
+                {/* Header */}
+                <div className="p-4 border-b border-slate-800 bg-slate-800/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded bg-slate-800 border border-slate-700 text-cyan-400 flex items-center justify-center font-mono font-bold text-xs">
                       {gIdx + 1}
                     </span>
                     <div>
-                      <h4 className="text-base font-bold text-white">{group.name}</h4>
-                      <p className="text-xs text-slate-400">{analytics.count} students</p>
+                      <h4 className="text-sm font-semibold text-white">{group.name}</h4>
+                      <p className="text-[11px] text-slate-400">{analytics.count} students</p>
                     </div>
                   </div>
 
                   {analytics.avgScore && (
                     <div className="text-right">
-                      <span className="text-xs text-slate-400">Avg Score</span>
-                      <p className="text-sm font-bold text-cyan-300">{analytics.avgScore}</p>
+                      <span className="text-[10px] text-slate-400 uppercase">Avg Score</span>
+                      <p className="text-xs font-semibold text-cyan-400">{analytics.avgScore}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Inline Group Analytics Breakdown (Point 6) */}
-                <div className="p-4 bg-brand-dark/40 border-b border-white/5 grid grid-cols-2 gap-3 text-xs">
-                  {/* Gender Distribution */}
-                  <div className="space-y-1">
-                    <span className="text-slate-400 font-semibold">Gender Balance:</span>
-                    <div className="flex items-center gap-2 text-slate-300 font-mono">
-                      <span>♂ {analytics.males}</span>
+                {/* Inline Group Analytics Breakdown */}
+                <div className="p-3 bg-slate-950 border-b border-slate-800 grid grid-cols-2 gap-2 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="text-slate-400 text-[11px] font-medium">Gender Balance:</span>
+                    <div className="flex items-center gap-2 text-slate-300 font-mono text-[11px]">
+                      <span>M: {analytics.males}</span>
                       <span className="text-slate-600">|</span>
-                      <span>♀ {analytics.females}</span>
+                      <span>F: {analytics.females}</span>
                     </div>
                   </div>
 
-                  {/* Programme Distribution */}
-                  <div className="space-y-1">
-                    <span className="text-slate-400 font-semibold">Programmes:</span>
+                  <div className="space-y-0.5">
+                    <span className="text-slate-400 text-[11px] font-medium">Programmes:</span>
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(analytics.progs).slice(0, 3).map(([prog, count]) => (
-                        <span key={prog} className="px-1.5 py-0.5 rounded bg-white/5 text-[11px] text-slate-300">
+                        <span key={prog} className="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-mono">
                           {prog}: {count}
                         </span>
                       ))}
@@ -307,29 +296,30 @@ const ResultsStudio = ({
                 </div>
 
                 {/* Student Table */}
-                <div className="flex-1 overflow-x-auto max-h-72">
+                <div className="flex-1 overflow-x-auto max-h-64">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-brand-secondary/30 text-slate-400 sticky top-0 font-semibold">
+                    <thead className="bg-slate-800/60 text-slate-400 sticky top-0 font-medium">
                       <tr>
                         {columns.map((col, cIdx) => (
-                          <th key={cIdx} className="px-3 py-2 whitespace-nowrap">{col}</th>
+                          <th key={cIdx} className="px-3 py-1.5 whitespace-nowrap">{col}</th>
                         ))}
-                        <th className="px-3 py-2 text-right">Move</th>
+                        <th className="px-3 py-1.5 text-right">Move</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 text-slate-300">
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
                       {items.map((student, sIdx) => (
-                        <tr key={sIdx} className="hover:bg-white/[0.02]">
+                        <tr key={sIdx} className="hover:bg-slate-850">
                           {columns.map((col, cIdx) => (
-                            <td key={cIdx} className="px-3 py-2 whitespace-nowrap">
-                              {student[col] !== undefined ? String(student[col]) : "—"}
+                            <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap text-slate-200">
+                              {student[col] !== undefined ? String(student[col]) : "-"}
                             </td>
                           ))}
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <td className="px-3 py-1.5 text-right whitespace-nowrap">
                             <select
                               value={gIdx}
                               onChange={(e) => handleMoveStudent(student, gIdx, Number(e.target.value))}
-                              className="bg-brand-dark/90 border border-white/15 text-slate-300 rounded px-2 py-0.5 text-[11px] focus:outline-none focus:border-brand-primary"
+                              aria-label={`Move student ${student.name || sIdx} to group`}
+                              className="bg-slate-950 border border-slate-700 text-slate-300 rounded px-2 py-0.5 text-[11px] focus:outline-none focus:border-brand-primary"
                             >
                               {currentGroups.map((tg, tIdx) => (
                                 <option key={tIdx} value={tIdx}>
@@ -349,15 +339,15 @@ const ResultsStudio = ({
         </div>
       </div>
 
-      {/* Always-Accessible Follow-Up AI Regroup Bar (Point 7) */}
-      <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
-        <div className="max-w-3xl mx-auto rounded-3xl bg-brand-dark/95 border border-brand-primary/30 p-4 shadow-2xl backdrop-blur-2xl pointer-events-auto space-y-3">
+      {/* Follow-Up Re-optimization Bar */}
+      <div className="fixed bottom-4 left-0 right-0 z-40 px-4 pointer-events-none">
+        <div className="max-w-3xl mx-auto rounded-md bg-slate-900/95 border border-slate-700 p-3.5 shadow-xl pointer-events-auto space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-white flex items-center gap-1.5">
-              <SparklesIcon className="w-4 h-4 text-brand-primary animate-pulse" />
-              <span>Want to adjust or regroup with AI?</span>
+            <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+              <AdjustmentsHorizontalIcon className="w-4 h-4 text-brand-primary" />
+              <span>Refine or Re-optimize Group Distribution</span>
             </span>
-            <span className="text-[11px] text-slate-400">Interactive Follow-Up Assistant</span>
+            <span className="text-[11px] text-slate-400">Constraint Adjustment</span>
           </div>
 
           <form onSubmit={handleRefineSubmit} className="flex gap-2">
@@ -366,29 +356,36 @@ const ResultsStudio = ({
               value={refinePrompt}
               onChange={(e) => setRefinePrompt(e.target.value)}
               placeholder="e.g. 'Make gender more balanced' or 'Move 5 Science students from Group 1 to Group 3'..."
-              className="flex-1 rounded-xl bg-brand-secondary/40 border border-white/10 px-4 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-primary"
+              className="flex-1 rounded bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-primary"
             />
             <button
               type="submit"
               disabled={!refinePrompt.trim() || refining}
-              className="px-5 py-2.5 bg-brand-primary text-brand-dark rounded-xl font-bold text-xs hover:bg-brand-accent transition-all shrink-0 disabled:opacity-50"
+              className="px-4 py-2 bg-brand-primary hover:bg-brand-accent text-slate-900 rounded font-semibold text-xs transition-standard hover-subtle shrink-0 disabled:opacity-50 flex items-center gap-1.5"
             >
-              {refining ? "Adjusting..." : "Re-optimize Groups"}
+              {refining ? (
+                <>
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-slate-900" />
+                  <span>Re-optimizing...</span>
+                </>
+              ) : (
+                <span>Re-optimize</span>
+              )}
             </button>
           </form>
 
           {/* Quick preset chips */}
-          <div className="flex flex-wrap gap-1.5 text-[11px]">
+          <div className="flex flex-wrap gap-1 text-[11px]">
             {[
-              "Make groups more balanced by gender",
-              "Group high performers together",
-              "Equalize science student count per group"
+              "Balance gender ratio 50/50",
+              "Equalize academic exam score averages",
+              "Distribute science track students uniformly"
             ].map((preset, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setRefinePrompt(preset)}
-                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 transition-colors"
+                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-standard"
               >
                 + {preset}
               </button>

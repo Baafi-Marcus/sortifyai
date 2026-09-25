@@ -5,7 +5,6 @@ import {
   FolderIcon, 
   TrashIcon, 
   ArrowTopRightOnSquareIcon,
-  ArrowPathIcon,
   CalendarDaysIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline';
@@ -31,7 +30,7 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
       setProjects(res.data?.projects || []);
     } catch (err) {
       console.error('Failed to fetch projects:', err);
-      setError('Could not load your saved projects.');
+      setError('Could not load saved projects.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +52,7 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
 
   const handleDeleteProject = async (projectId, e) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    if (!window.confirm('Delete this project permanently from your cloud database?')) return;
     try {
       await axios.delete(`${apiUrl}/projects/${projectId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -67,23 +66,24 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl rounded-3xl bg-brand-dark border border-white/15 p-6 sm:p-8 shadow-2xl space-y-6 max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fadeIn">
+      <div className="relative w-full max-w-2xl rounded-md bg-slate-900 border border-slate-700 p-6 sm:p-8 space-y-6 max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary">
-              <FolderIcon className="w-6 h-6" />
+            <div className="w-9 h-9 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary">
+              <FolderIcon className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">My Cloud Projects</h3>
-              <p className="text-xs text-slate-400">Stored in your secure Neon PostgreSQL database</p>
+              <h3 className="text-base font-semibold text-white">Cloud Projects</h3>
+              <p className="text-xs text-slate-400">Stored in your Neon PostgreSQL database</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Close saved projects dialog"
+            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-standard"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
@@ -91,25 +91,33 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
 
         {/* Content list */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+          {/* Content-matched skeleton screens (Async Action Standard) */}
           {loading && (
-            <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-3">
-              <ArrowPathIcon className="w-8 h-8 animate-spin text-brand-primary" />
-              <p className="text-sm">Loading projects from Neon...</p>
+            <div className="space-y-3">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="p-4 rounded-md border border-slate-800 bg-slate-800/40 flex items-center justify-between">
+                  <div className="space-y-2 flex-1 max-w-md">
+                    <div className="h-4 skeleton-block w-48" />
+                    <div className="h-3 skeleton-block w-32" />
+                  </div>
+                  <div className="h-8 skeleton-block w-16" />
+                </div>
+              ))}
             </div>
           )}
 
           {!loading && error && (
-            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm">
+            <div className="p-3 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
               {error}
             </div>
           )}
 
           {!loading && !error && projects.length === 0 && (
-            <div className="py-16 text-center text-slate-400 space-y-2">
-              <FolderIcon className="w-12 h-12 mx-auto text-slate-600" />
-              <p className="text-sm text-slate-300 font-medium">No saved projects yet</p>
+            <div className="py-12 text-center text-slate-400 space-y-2">
+              <FolderIcon className="w-10 h-10 mx-auto text-slate-600" />
+              <p className="text-sm text-slate-300 font-medium">No saved projects found</p>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Generate student groups in the Results Studio and click "Save to Cloud" to store your cohorts here.
+                Generate student groups in the Results Studio and select "Save to Cloud" to persist cohorts.
               </p>
             </div>
           )}
@@ -118,10 +126,10 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
             <div
               key={proj.id}
               onClick={() => handleOpenProject(proj.id)}
-              className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-brand-primary/40 cursor-pointer transition-all flex items-center justify-between group"
+              className="p-4 rounded-md bg-slate-800/50 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-standard hover-subtle flex items-center justify-between group"
             >
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-white group-hover:text-brand-primary transition-colors">
+                <h4 className="text-sm font-semibold text-white group-hover:text-cyan-400 transition-standard">
                   {proj.title}
                 </h4>
                 <div className="flex items-center gap-4 text-xs text-slate-400">
@@ -139,12 +147,13 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={(e) => handleDeleteProject(proj.id, e)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  aria-label={`Delete project ${proj.title}`}
+                  className="p-1.5 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-standard"
                   title="Delete Project"
                 >
                   <TrashIcon className="w-4 h-4" />
                 </button>
-                <div className="px-3 py-1.5 rounded-xl bg-brand-primary/10 group-hover:bg-brand-primary text-brand-primary group-hover:text-brand-dark text-xs font-semibold flex items-center gap-1 transition-all">
+                <div className="px-2.5 py-1 rounded bg-cyan-500/10 group-hover:bg-brand-primary text-brand-primary group-hover:text-slate-900 text-xs font-semibold flex items-center gap-1 transition-standard">
                   <span>Open</span>
                   <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                 </div>

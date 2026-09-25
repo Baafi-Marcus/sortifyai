@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  ArrowDownTrayIcon, 
   PrinterIcon, 
   DocumentTextIcon, 
   XMarkIcon,
@@ -14,7 +13,6 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
   const downloadCombinedCSV = () => {
     if (!groups || groups.length === 0) return;
 
-    // Collect all unique headers across groups
     const sampleItem = groups.find(g => g.items && g.items.length > 0)?.items[0];
     if (!sampleItem) return;
 
@@ -82,40 +80,43 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
     onClose();
   };
 
-  // Printable layout trigger
   const handlePrint = () => {
     onClose();
     window.print();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-lg rounded-3xl bg-brand-dark border border-white/15 p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fadeIn">
+      <div className="relative w-full max-w-lg rounded-md bg-slate-900 border border-slate-700 p-6 sm:p-8 space-y-5">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
           <div>
-            <h3 className="text-lg font-bold text-white">Export & Download Groups</h3>
-            <p className="text-xs text-slate-400">Choose the format that works best for your school workflow</p>
+            <h3 className="text-base font-semibold text-white">Export Cohort Rosters</h3>
+            <p className="text-xs text-slate-400">Select target format for spreadsheet or printed distribution</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-lg">
+          <button 
+            onClick={onClose} 
+            aria-label="Close export dialog"
+            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-standard"
+          >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {/* Format 1: All Groups in One CSV */}
           <button
             onClick={downloadCombinedCSV}
-            className="w-full p-4 rounded-2xl bg-brand-secondary/20 border border-white/10 hover:border-brand-primary/40 hover:bg-brand-secondary/30 transition-all text-left flex items-start gap-4 group"
+            className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
           >
-            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0 group-hover:scale-105 transition-transform">
-              <TableCellsIcon className="w-5 h-5" />
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
+              <TableCellsIcon className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
-                All Groups in One Sheet (CSV / Excel)
+              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">
+                Unified Workbook (Single CSV / Excel)
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Recommended: Combines all students into a single master sheet with an added "Group Name" column.
+              <p className="text-xs text-slate-400 mt-0.5 leading-normal">
+                Combines all students into a master sheet with an added "Group Name" column.
               </p>
             </div>
           </button>
@@ -123,35 +124,35 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
           {/* Format 2: Separate CSVs */}
           <button
             onClick={downloadSeparateCSVs}
-            className="w-full p-4 rounded-2xl bg-brand-secondary/20 border border-white/10 hover:border-brand-primary/40 hover:bg-brand-secondary/30 transition-all text-left flex items-start gap-4 group"
+            className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
           >
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 group-hover:scale-105 transition-transform">
-              <DocumentTextIcon className="w-5 h-5" />
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
+              <DocumentTextIcon className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
-                Separate File per Group
+              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">
+                Separate File per Cohort
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Downloads an individual CSV roster for each group (e.g. Group_1.csv, Group_2.csv).
+              <p className="text-xs text-slate-400 mt-0.5 leading-normal">
+                Generates an individual CSV file for each group for independent distribution.
               </p>
             </div>
           </button>
 
-          {/* Format 3: Printable Group Lists (Point 11) */}
+          {/* Format 3: Printable Group Lists */}
           <button
             onClick={handlePrint}
-            className="w-full p-4 rounded-2xl bg-brand-secondary/20 border border-white/10 hover:border-brand-primary/40 hover:bg-brand-secondary/30 transition-all text-left flex items-start gap-4 group"
+            className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
-              <PrinterIcon className="w-5 h-5" />
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
+              <PrinterIcon className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
-                Printable Rosters (Notice Board / PDF)
+              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">
+                Print-Ready Rosters (PDF / Physical Notice)
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Formatted clean paper view ready to print or save as PDF for classroom display.
+              <p className="text-xs text-slate-400 mt-0.5 leading-normal">
+                Structured black-and-white table layout formatted for classroom notice boards.
               </p>
             </div>
           </button>

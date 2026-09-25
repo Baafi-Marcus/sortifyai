@@ -5,7 +5,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
+# Load environment variables (checking current working directory and backend/.env)
 load_dotenv()
+backend_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=backend_env_path)
 
 # Database setup: Neon PostgreSQL with graceful local fallback
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -14,9 +17,11 @@ if not DATABASE_URL:
     # Local fallback if DATABASE_URL is not configured
     DATABASE_URL = "sqlite:///./sortifyai_v2.db"
 
-# Normalize postgres:// to postgresql:// for SQLAlchemy compatibility
+# Normalize postgres:// and postgresql:// to postgresql+psycopg2:// for SQLAlchemy compatibility
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # Configure database engine based on dialect
 if DATABASE_URL.startswith("sqlite"):

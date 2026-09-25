@@ -14,23 +14,30 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Load environment variables
+# Load environment variables from both root and backend/.env
+env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv()
+load_dotenv(dotenv_path=env_path, override=True)
 
-# Source: Local SQLite
-SQLITE_URL = "sqlite:///./backend/sortifyai_v2.db"
+# Locate SQLite database
+base_dir = os.path.dirname(os.path.abspath(__file__))
+sqlite_db_path = os.path.join(base_dir, "sortifyai_v2.db")
+SQLITE_URL = f"sqlite:///{sqlite_db_path}"
+
 # Target: Neon PostgreSQL
 NEON_URL = os.getenv("DATABASE_URL")
 
 if not NEON_URL or "sqlite" in NEON_URL:
-    print("❌ ERROR: DATABASE_URL environment variable is not set to a PostgreSQL URL.")
+    print("[ERROR] DATABASE_URL environment variable is not set to a PostgreSQL URL.")
     print("Please set your Neon PostgreSQL URL in backend/.env or export DATABASE_URL.")
     sys.exit(1)
 
 if NEON_URL.startswith("postgres://"):
-    NEON_URL = NEON_URL.replace("postgres://", "postgresql://", 1)
+    NEON_URL = NEON_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif NEON_URL.startswith("postgresql://") and not NEON_URL.startswith("postgresql+"):
+    NEON_URL = NEON_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
-print("🔗 Connecting to SQLite and Neon PostgreSQL...")
+print("[INFO] Connecting to SQLite and Neon PostgreSQL...")
 
 # SQLite Engine
 sqlite_engine = create_engine(SQLITE_URL, connect_args={"check_same_thread": False})
@@ -42,31 +49,35 @@ neon_engine = create_engine(NEON_URL, pool_pre_ping=True)
 NeonSession = sessionmaker(bind=neon_engine)
 neon_session = NeonSession()
 
-from backend.database import Base, File, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog
+sys.path.append(os.path.dirname(base_dir))
+sys.path.append(base_dir)
+try:
+    from backend.database import Base, File, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog
+except ImportError:
+    from database import Base, File, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog
 
 # 1. Create tables in Neon if they don't exist
-print("📦 Creating schema and tables in Neon PostgreSQL...")
+print("[INFO] Creating schema and tables in Neon PostgreSQL...")
 Base.metadata.create_all(bind=neon_engine)
 
 def migrate_table(model, name):
     records = sqlite_session.query(model).all()
     count = 0
     for r in records:
-        # Create detached copy
         neon_session.merge(r)
         count += 1
     neon_session.commit()
-    print(f"✅ Migrated {count} record(s) from {name}")
+    print(f"[OK] Migrated {count} record(s) from {name}")
 
 try:
     migrate_table(File, "files")
     migrate_table(ChatHistory, "chat_history")
     migrate_table(Grouping, "groupings")
     migrate_table(Feedback, "feedback")
-    print("\n🎉 Migration completed successfully! Your data is now in Neon PostgreSQL.")
+    print("\n[SUCCESS] Migration completed successfully! Your data is now in Neon PostgreSQL.")
 except Exception as e:
     neon_session.rollback()
-    print(f"\n❌ Migration error: {e}")
+    print(f"\n[ERROR] Migration error: {e}")
 finally:
     sqlite_session.close()
     neon_session.close()

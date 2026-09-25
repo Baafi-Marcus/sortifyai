@@ -185,7 +185,15 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
         {/* Footer */}
         <p className="text-[11px] text-center text-slate-500">
-          By signing in, you agree to SortifyAI's Terms of Service and Privacy Policy. Student data remains strictly private.
+          By signing in, you agree to SortifyAI's{' '}
+          <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-300">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-300">
+            Privacy Policy
+          </a>
+          . Student data remains strictly private.
         </p>
       </div>
     </div>

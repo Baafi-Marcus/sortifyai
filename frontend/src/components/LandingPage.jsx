@@ -337,6 +337,20 @@ const LandingPage = ({
             >
               API Docs & SDKs
             </button>
+            {' '}•{' '}
+            <a 
+              href="/privacy.html"
+              className="text-slate-400 hover:text-cyan-300 underline font-medium"
+            >
+              Privacy Policy
+            </a>
+            {' '}•{' '}
+            <a 
+              href="/terms.html"
+              className="text-slate-400 hover:text-cyan-300 underline font-medium"
+            >
+              Terms of Service
+            </a>
           </p>
         </div>
       </main>

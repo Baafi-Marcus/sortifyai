@@ -8,10 +8,21 @@ import {
   ScaleIcon, 
   ArrowPathIcon, 
   PrinterIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  FolderIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 
-const LandingPage = ({ onGetStarted, onTrySample, serverStatus, onOpenDeveloperApi }) => {
+const LandingPage = ({ 
+  onGetStarted, 
+  onTrySample, 
+  serverStatus, 
+  onOpenDeveloperApi,
+  currentUser,
+  onOpenAuth,
+  onOpenSavedProjects,
+  onLogout
+}) => {
   return (
     <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-primary/30">
       {/* Top Navigation */}
@@ -48,6 +59,44 @@ const LandingPage = ({ onGetStarted, onTrySample, serverStatus, onOpenDeveloperA
               >
                 <span>Developers & API</span>
               </button>
+
+              {/* Google Sign-in / User Profile */}
+              {currentUser ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onOpenSavedProjects}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-semibold hover:bg-brand-primary/20 transition-colors"
+                  >
+                    <FolderIcon className="w-3.5 h-3.5" />
+                    <span>My Projects</span>
+                  </button>
+                  <button
+                    onClick={onLogout}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition-colors border border-white/5"
+                    title="Sign Out"
+                  >
+                    {currentUser.avatar_url ? (
+                      <img src={currentUser.avatar_url} alt={currentUser.name} className="w-4 h-4 rounded-full object-cover" />
+                    ) : (
+                      <UserCircleIcon className="w-4 h-4 text-slate-400" />
+                    )}
+                    <span className="hidden sm:inline">{currentUser.name.split(' ')[0]}</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={onOpenAuth}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 hover:text-white transition-all"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.94H1.28v3.13C3.28 21.36 7.36 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.32 14.26c-.24-.73-.38-1.5-.38-2.26s.14-1.53.38-2.26V6.61H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.39l4.04-3.13z"/>
+                    <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.94 1.19 15.24 0 12 0 7.36 0 3.28 2.64 1.28 6.61l4.04 3.13c.94-2.84 3.58-4.97 6.68-4.97z"/>
+                  </svg>
+                  <span>Sign In</span>
+                </button>
+              )}
 
               <button 
                 onClick={onGetStarted} 

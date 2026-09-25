@@ -1,6 +1,10 @@
 import os
-from twilio.rest import Client
 from dotenv import load_dotenv
+
+try:
+    from twilio.rest import Client
+except ImportError:
+    Client = None
 
 load_dotenv()
 

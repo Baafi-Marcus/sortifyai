@@ -12,3 +12,4 @@ python-jose[cryptography]
 twilio
 pdfplumber
 psycopg2-binary
+google-auth

@@ -122,6 +122,33 @@ class APIUsageLog(Base):
     latency_ms = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    google_id = Column(String, unique=True, index=True, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    avatar_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+
+class Project(Base):
+    __tablename__ = "projects"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    filename = Column(String, nullable=True)
+    total_students = Column(Integer, default=0)
+    groups_count = Column(Integer, default=0)
+    groups_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    
+    owner = relationship("User", back_populates="projects")
+
 # Create tables
 def init_db():
     Base.metadata.create_all(bind=engine)

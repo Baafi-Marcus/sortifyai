@@ -1,21 +1,38 @@
+import os
+import sys
+
+# Ensure backend directory is in sys.path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.append(backend_dir)
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import shutil
-import os
 import uuid
 import pandas as pd
 import json
 import re
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from jose import jwt, JWTError
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from data_engine import DataExtractor
 from ai_engine import AIGroupingAgent
 from optimization_engine import OptimizationEngine
-from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog
+from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project
 from whatsapp_service import send_feedback_notification
+
+security = HTTPBearer(auto_error=False)
+JWT_SECRET = os.getenv("JWT_SECRET", "sortifyai-secret-jwt-key-2026-secure")
+JWT_ALGORITHM = "HS256"
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 app = FastAPI(
     title="SortifyAI Platform Engine API",
@@ -84,6 +101,41 @@ class FeedbackRequest(BaseModel):
     email: str = None
     rating: int
     message: str
+
+class GoogleLoginRequest(BaseModel):
+    credential: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    google_id: Optional[str] = None
+
+class SaveProjectRequest(BaseModel):
+    title: str
+    filename: Optional[str] = None
+    total_students: Optional[int] = 0
+    groups_count: Optional[int] = 0
+    groups_data: List[Dict[str, Any]]
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=30)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    if not credentials:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        return db.query(User).filter(User.id == int(user_id)).first()
+    except (JWTError, ValueError):
+        return None
 
 def compute_group_analytics(items: List[dict]) -> dict:
     """Computes distribution and score analytics for a group of students."""
@@ -744,4 +796,212 @@ async def create_api_key(req: CreateAPIKeyRequest, db: Session = Depends(get_db)
         "rate_limit_per_min": api_key_record.rate_limit_per_min,
         "created_at": api_key_record.created_at.isoformat()
     }
+
+# ==========================================
+# Google Authentication & Project Cloud Sync
+# ==========================================
+
+@app.post("/auth/google", summary="Google One-Tap / OAuth Sign-In")
+async def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
+    """Authenticates or signs up a user via Google Identity Services."""
+    google_data = {}
+    
+    if req.credential:
+        try:
+            if GOOGLE_CLIENT_ID:
+                id_info = google_id_token.verify_oauth2_token(
+                    req.credential, 
+                    google_requests.Request(), 
+                    GOOGLE_CLIENT_ID
+                )
+            else:
+                id_info = jwt.get_unverified_claims(req.credential)
+                
+            google_data = {
+                "google_id": id_info.get("sub"),
+                "email": id_info.get("email"),
+                "name": id_info.get("name") or id_info.get("email", "").split("@")[0],
+                "avatar_url": id_info.get("picture")
+            }
+        except Exception as e:
+            if not req.email:
+                raise HTTPException(status_code=400, detail=f"Invalid Google credential: {str(e)}")
+            google_data = {
+                "google_id": req.google_id,
+                "email": req.email,
+                "name": req.name or req.email.split("@")[0],
+                "avatar_url": req.avatar_url
+            }
+    elif req.email:
+        google_data = {
+            "google_id": req.google_id,
+            "email": req.email,
+            "name": req.name or req.email.split("@")[0],
+            "avatar_url": req.avatar_url
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Missing Google credential or email.")
+
+    if not google_data.get("email"):
+        raise HTTPException(status_code=400, detail="Could not determine email from Google account.")
+
+    # Find or create user in Neon PostgreSQL
+    user = db.query(User).filter(
+        (User.email == google_data["email"]) | 
+        (User.google_id == google_data.get("google_id"))
+    ).first()
+
+    if not user:
+        user = User(
+            email=google_data["email"],
+            name=google_data.get("name") or "User",
+            google_id=google_data.get("google_id"),
+            avatar_url=google_data.get("avatar_url")
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        if google_data.get("avatar_url"):
+            user.avatar_url = google_data["avatar_url"]
+        if google_data.get("name"):
+            user.name = google_data["name"]
+        db.commit()
+        db.refresh(user)
+
+    session_token = create_access_token({"sub": str(user.id), "email": user.email})
+
+    return {
+        "status": "success",
+        "token": session_token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "avatar_url": user.avatar_url
+        }
+    }
+
+@app.get("/auth/me", summary="Get Current Authenticated User Profile")
+async def get_current_user_profile(
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Returns profile and project statistics of logged in user."""
+    if not user:
+        return {"authenticated": False, "user": None}
+    
+    saved_projects_count = db.query(Project).filter(Project.user_id == user.id).count()
+    return {
+        "authenticated": True,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "avatar_url": user.avatar_url,
+            "saved_projects_count": saved_projects_count
+        }
+    }
+
+@app.post("/projects/save", summary="Save a Grouping Project to Cloud")
+async def save_project(
+    req: SaveProjectRequest,
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Saves a generated grouping session into user's Neon cloud account."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Please sign in with Google to save projects.")
+
+    new_project = Project(
+        user_id=user.id,
+        title=req.title,
+        filename=req.filename,
+        total_students=req.total_students or 0,
+        groups_count=req.groups_count or len(req.groups_data),
+        groups_json=json.dumps(req.groups_data)
+    )
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+
+    return {
+        "status": "success",
+        "message": "Project saved successfully to your cloud account.",
+        "project": {
+            "id": new_project.id,
+            "title": new_project.title,
+            "filename": new_project.filename,
+            "total_students": new_project.total_students,
+            "groups_count": new_project.groups_count,
+            "created_at": new_project.created_at.isoformat()
+        }
+    }
+
+@app.get("/projects", summary="List All Saved Projects for User")
+async def list_user_projects(
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Lists all saved projects for the currently logged in user."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Please sign in with Google to view saved projects.")
+
+    projects = db.query(Project).filter(Project.user_id == user.id).order_by(Project.created_at.desc()).all()
+    return {
+        "projects": [
+            {
+                "id": p.id,
+                "title": p.title,
+                "filename": p.filename,
+                "total_students": p.total_students,
+                "groups_count": p.groups_count,
+                "created_at": p.created_at.isoformat()
+            }
+            for p in projects
+        ]
+    }
+
+@app.get("/projects/{project_id}", summary="Load a Specific Saved Project")
+async def get_project_details(
+    project_id: int,
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieves full groups and analytics data for a saved project."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Please sign in with Google.")
+
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    return {
+        "id": project.id,
+        "title": project.title,
+        "filename": project.filename,
+        "total_students": project.total_students,
+        "groups_count": project.groups_count,
+        "groups": json.loads(project.groups_json),
+        "created_at": project.created_at.isoformat()
+    }
+
+@app.delete("/projects/{project_id}", summary="Delete a Saved Project")
+async def delete_project(
+    project_id: int,
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Deletes a saved project."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Please sign in with Google.")
+
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    db.delete(project)
+    db.commit()
+    return {"status": "success", "message": "Project deleted successfully."}
+
 

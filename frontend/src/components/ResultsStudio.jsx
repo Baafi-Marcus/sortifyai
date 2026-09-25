@@ -8,7 +8,8 @@ import {
   AcademicCapIcon,
   ChevronDownIcon,
   ArrowsRightLeftIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
 
 const ResultsStudio = ({ 
@@ -17,6 +18,7 @@ const ResultsStudio = ({
   onRefineWithAI, 
   onOpenExport,
   onPrintRoster,
+  onSaveToCloud,
   totalRows 
 }) => {
   // Version history & local group state for instant manual adjustments (Points 10 & 12)
@@ -171,10 +173,22 @@ const ResultsStudio = ({
             <span>Print Rosters</span>
           </button>
 
+          {/* Save to Cloud Button */}
+          {onSaveToCloud && (
+            <button
+              onClick={() => onSaveToCloud(currentGroups)}
+              className="px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-brand-primary/10 hover:scale-[1.02]"
+              title="Save project to your Neon PostgreSQL cloud"
+            >
+              <CloudArrowUpIcon className="w-4 h-4" />
+              <span>Save to Cloud</span>
+            </button>
+          )}
+
           {/* Export Dropdown (Point 11) */}
           <button
             onClick={onOpenExport}
-            className="px-5 py-2 bg-brand-primary text-brand-dark rounded-xl font-bold text-xs hover:bg-brand-accent transition-all flex items-center gap-1.5 shadow-lg shadow-brand-primary/20"
+            className="px-5 py-2 bg-brand-primary text-brand-dark rounded-xl font-bold text-xs hover:bg-brand-accent transition-all flex items-center gap-1.5 shadow-lg shadow-brand-primary/20 hover:scale-105"
           >
             <ArrowDownTrayIcon className="w-4 h-4" />
             <span>Export ▼</span>

@@ -3,4 +3,4 @@ Disallow: /#admin
 Disallow: /admin
 Allow: /
 
-Sitemap: https://www.sortifyai.com/sitemap.xml
+Sitemap: https://sortify-ai.vercel.app/sitemap.xml

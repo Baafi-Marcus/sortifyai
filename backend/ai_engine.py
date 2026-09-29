@@ -2,7 +2,7 @@ import os
 import openai
 import pandas as pd
 import json
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,60 +12,105 @@ class AIGroupingAgent:
         self.current_key_index = 0
         self.client = None
         self.api_keys = []
+        self.provider = "openrouter"
+        self.model = "openai/gpt-4o-mini"
+        self.base_url = "https://openrouter.ai/api/v1"
         self._load_keys()
-        self.model = "openai/gpt-4o-mini" # Using GPT-4o-mini for cost efficiency
         self._initialize_client()
 
     def _load_keys(self):
-        """Reloads API keys from environment variables."""
+        """Reloads active AI provider configuration from database or env variables."""
         load_dotenv(override=True)
         
+        # Check database for active AIConfig
+        try:
+            from database import SessionLocal, AIConfig
+            db = SessionLocal()
+            active_cfg = db.query(AIConfig).filter(AIConfig.is_active == True).first()
+            if active_cfg and active_cfg.api_key:
+                self.provider = active_cfg.provider
+                self.model = active_cfg.model or "gpt-4o-mini"
+                self.base_url = active_cfg.base_url or "https://api.openai.com/v1"
+                self.api_keys = [active_cfg.api_key.strip()]
+                self.current_key_index = 0
+                db.close()
+                print(f"✓ Loaded active AI Provider '{self.provider}' (Model: {self.model}) from Database")
+                return
+            db.close()
+        except Exception as e:
+            print("Note checking database for AI config:", e)
+
+        # Fallback to Environment Variables
         found_keys = []
         
-        # 1. Check for comma-separated keys in main variables
+        # 1. Check for Gemini
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
+            self.provider = "gemini"
+            self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+            self.base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            self.api_keys = [gemini_key.strip()]
+            return
+
+        # 2. Check for OpenAI
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if openai_key:
+            self.provider = "openai"
+            self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            self.base_url = "https://api.openai.com/v1"
+            self.api_keys = [openai_key.strip()]
+            return
+
+        # 3. Check for GitHub Models
+        github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_MODELS_KEY")
+        if github_token:
+            self.provider = "github"
+            self.model = os.getenv("GITHUB_MODEL", "gpt-4o-mini")
+            self.base_url = "https://models.inference.ai.azure.com"
+            self.api_keys = [github_token.strip()]
+            return
+
+        # 4. Check OpenRouter
+        self.provider = "openrouter"
+        self.model = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+        self.base_url = "https://openrouter.ai/api/v1"
+        
         keys_str = os.getenv("OPENROUTER_API_KEYS") or os.getenv("OPENROUTER_API_KEY")
         if keys_str:
-            # Handle potential newlines or weird spacing by replacing newlines with commas
             keys_str = keys_str.replace('\n', ',')
             found_keys.extend([k.strip() for k in keys_str.split(',') if k.strip()])
 
-        # 2. Check for indexed keys (OPENROUTER_API_KEY_1, _2, etc.)
-        # We'll check a reasonable range, say 1 to 20
         for i in range(1, 21):
             key = os.getenv(f"OPENROUTER_API_KEY_{i}")
             if key:
                 found_keys.append(key.strip())
         
-        # Deduplicate while preserving order
         self.api_keys = list(dict.fromkeys(found_keys))
         
         if not self.api_keys:
-            print("WARNING: No OPENROUTER_API_KEY found.")
+            print("WARNING: No AI API keys found. Please configure in the Admin panel.")
         else:
-            print(f"✓ Reloaded {len(self.api_keys)} API key(s)")
+            print(f"✓ Reloaded {len(self.api_keys)} API key(s) for provider: {self.provider}")
             
-        # Ensure current index is valid
         if self.api_keys and self.current_key_index >= len(self.api_keys):
             self.current_key_index = 0
 
     def _initialize_client(self):
-        """Initializes the OpenAI client with the current key."""
+        """Initializes the OpenAI client with the current key and base URL."""
         if not self.api_keys:
+            self.client = None
             return
             
         current_key = self.api_keys[self.current_key_index]
-        print(f"Initializing AI Agent with key index {self.current_key_index} (starts with {current_key[:4]}...)")
+        print(f"Initializing AI Agent ({self.provider}) with key index {self.current_key_index} (starts with {current_key[:4]}...)")
         
         self.client = openai.OpenAI(
-            base_url="https://openrouter.ai/api/v1",
+            base_url=self.base_url,
             api_key=current_key,
         )
 
     def _rotate_key(self) -> bool:
-        """
-        Rotates to the next available API key.
-        Returns True if a new key was selected, False if we've cycled through all keys.
-        """
+        """Rotates to the next available API key if multiple exist."""
         if not self.api_keys or len(self.api_keys) <= 1:
             return False
             
@@ -74,6 +119,125 @@ class AIGroupingAgent:
         self._initialize_client()
         print(f"🔄 Rotated from key {old_index} to key {self.current_key_index}")
         return True
+
+    @staticmethod
+    def test_connection(provider: str, api_key: str, model: str, base_url: Optional[str] = None) -> Dict[str, Any]:
+        """Tests an AI provider configuration with a test completion."""
+        try:
+            target_url = base_url
+            if not target_url:
+                if provider == "gemini":
+                    target_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+                elif provider == "github":
+                    target_url = "https://models.inference.ai.azure.com"
+                elif provider == "openai":
+                    target_url = "https://api.openai.com/v1"
+                else:
+                    target_url = "https://openrouter.ai/api/v1"
+
+            test_client = openai.OpenAI(base_url=target_url, api_key=api_key)
+            test_response = test_client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "user", "content": "Respond with JSON: {\"status\": \"ok\", \"provider\": \"" + provider + "\"}"}
+                ],
+                max_tokens=50
+            )
+            content = test_response.choices[0].message.content
+            return {
+                "success": True,
+                "message": f"Successfully connected to {provider.upper()} ({model})!",
+                "response_sample": content
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def answer_file_question(self, data: Union[pd.DataFrame, List[str]], user_prompt: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+        """
+        Answers analytical and contextual questions about an uploaded file using the active AI provider.
+        """
+        self._load_keys()
+
+        # Build detailed data context
+        if isinstance(data, pd.DataFrame):
+            total_rows = len(data)
+            columns = [str(c) for c in data.columns]
+            
+            # Numeric summaries
+            desc = ""
+            try:
+                numeric_df = data.select_dtypes(include=['number'])
+                if not numeric_df.empty:
+                    desc = f"\nNumeric Summary:\n{numeric_df.describe().round(2).to_string()}\n"
+            except Exception:
+                pass
+
+            # Top sample rows
+            sample_records = data.head(15).fillna("").to_dict(orient="records")
+            data_context = f"""
+Dataset Overview:
+- Total rows/students: {total_rows}
+- Columns ({len(columns)}): {', '.join(columns)}
+{desc}
+Sample First 15 Records:
+{json.dumps(sample_records, default=str, indent=2)}
+"""
+        else:
+            text_preview = "\n".join(data[:40]) if isinstance(data, list) else str(data)[:2000]
+            data_context = f"Document Text Sample:\n{text_preview}"
+
+        system_prompt = """You are SortifyAI's Intelligent Roster & Data Assistant.
+You have direct access to the user's uploaded dataset/file.
+Your goal is to answer questions about the file accurately, concisely, and helpfully.
+
+Formatting Guidelines:
+- Use clean Markdown with bolding, lists, and tables when displaying data.
+- When computing counts, averages, or top/bottom items, refer directly to the dataset context provided.
+- If asked to summarize the file, provide key metrics: total headcount, notable columns, and high-level distribution.
+- If the user asks you to group or sort the file, let them know you can do that and provide suggested grouping parameters.
+- Be direct, professional, and clear.
+"""
+
+        messages = [{"role": "system", "content": system_prompt}]
+
+        if conversation_history:
+            for msg in conversation_history[-6:]:
+                messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+
+        user_content = f"{data_context}\n\nUser Question about this file:\n{user_prompt}"
+        messages.append({"role": "user", "content": user_content})
+
+        if not self.api_keys or not self.client:
+            # Helpful algorithmic fallback when no API key is yet configured
+            if isinstance(data, pd.DataFrame):
+                return f"### File Overview\n\n• **Total Records**: {len(data)} rows\n• **Columns Detected**: {', '.join([f'`{c}`' for c in data.columns])}\n\n*Note: To unlock deep conversational AI reasoning, please configure your API key (Gemini, OpenAI, or GitHub Models) in the Admin panel at `/#admin`.*"
+            return "File received. Please configure an AI key in the Admin panel to enable natural language questioning."
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=1000,
+                temperature=0.3
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"Error answering question: {e}")
+            if self._rotate_key():
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        max_tokens=1000,
+                        temperature=0.3
+                    )
+                    return response.choices[0].message.content
+                except Exception as e2:
+                    return f"Sorry, could not answer your question: {str(e2)}"
+            return f"Encountered an issue processing your request: {str(e)}"
 
     def analyze_structure(self, data: Union[pd.DataFrame, List[str]]) -> str:
         """

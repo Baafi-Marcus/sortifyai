@@ -24,16 +24,19 @@ from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
+import bcrypt
+
 from data_engine import DataExtractor
 from ai_engine import AIGroupingAgent
 from optimization_engine import OptimizationEngine
-from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project, TesterRequest
+from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project, TesterRequest, AIConfig
 from whatsapp_service import send_feedback_notification
 
 security = HTTPBearer(auto_error=False)
 JWT_SECRET = os.getenv("JWT_SECRET", "sortifyai-secret-jwt-key-2026-secure")
 JWT_ALGORITHM = "HS256"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+ADMIN_KEY = os.getenv("ADMIN_KEY", "sortifyadmin2026")
 
 app = FastAPI(
     title="SortifyAI Platform Engine API",
@@ -115,12 +118,65 @@ class TesterSignupRequest(BaseModel):
     name: Optional[str] = None
     organization: Optional[str] = None
 
+class UserRegisterRequest(BaseModel):
+    username: str
+    password: str
+    confirm_password: str
+    email: str
+    name: Optional[str] = None
+
+class UserLoginRequest(BaseModel):
+    identifier: str  # username or email
+    password: str
+
+class SaveAIConfigRequest(BaseModel):
+    provider: str  # 'gemini', 'openai', 'github', 'openrouter'
+    api_key: str
+    model: Optional[str] = None
+    base_url: Optional[str] = None
+    is_active: Optional[bool] = False
+
+class TestAIConfigRequest(BaseModel):
+    provider: str
+    api_key: str
+    model: str
+    base_url: Optional[str] = None
+
+class ChatMessageRequest(BaseModel):
+    file_id: str
+    message: str
+
 class SaveProjectRequest(BaseModel):
     title: str
     filename: Optional[str] = None
     total_students: Optional[int] = 0
     groups_count: Optional[int] = 0
     groups_data: List[Dict[str, Any]]
+
+def hash_password(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        pwd_bytes = plain_password.encode('utf-8')[:72]
+        hash_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(pwd_bytes, hash_bytes)
+    except Exception:
+        return False
+
+def validate_strong_password(password: str):
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter (A-Z).")
+    if not re.search(r"[a-z]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter (a-z).")
+    if not re.search(r"[0-9]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number (0-9).")
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\",.<>/?\\|`~]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character (!@#$%^&*...).")
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
@@ -630,8 +686,11 @@ async def get_chat_history(file_id: str, db: Session = Depends(get_db)):
     if not db_file:
         raise HTTPException(status_code=404, detail="File not found")
 
-    chats = db.query(ChatHistory).filter(ChatHistory.file_id == file_id).order_by(ChatHistory.timestamp).all()
+    chats = db.query(ChatHistory).filter(ChatHistory.file_id == file_id).order_by(ChatHistory.timestamp.asc()).all()
     return {
+        "file_id": file_id,
+        "filename": db_file.filename,
+        "total_rows": db_file.total_rows,
         "chat_history": [
             {
                 "id": chat.id,
@@ -642,6 +701,131 @@ async def get_chat_history(file_id: str, db: Session = Depends(get_db)):
             for chat in chats
         ]
     }
+
+def is_grouping_request(prompt: str) -> bool:
+    prompt_l = prompt.lower()
+    grouping_keywords = [
+        "group", "divide", "allocate", "split", "cohort", "house", 
+        "teams", "cluster", "categorize into", "sort into",
+        "make groups", "create groups", "partition", "distribute into"
+    ]
+    return any(k in prompt_l for k in grouping_keywords)
+
+@app.post("/chat", summary="Natural Language Chat about an Uploaded File")
+async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
+    """Conversational endpoint: answers questions about the file or executes grouping instructions."""
+    db_file = db.query(DBFile).filter(DBFile.file_id == req.file_id).first()
+    if not db_file:
+        raise HTTPException(status_code=404, detail="File session not found.")
+
+    try:
+        data = data_extractor.load_data(db_file.file_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load file data: {str(e)}")
+
+    user_msg = req.message.strip()
+    if not user_msg:
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    # Check if the user intends to group the file
+    if is_grouping_request(user_msg):
+        data_summary = db_file.data_summary or (ai_agent.analyze_structure(data) if data is not None else "")
+        grouping_rules_json = ai_agent.interpret_instructions(data_summary, user_msg)
+
+        json_match = re.search(r'```json\n(.*?)\n```', grouping_rules_json, re.DOTALL)
+        json_str = json_match.group(1) if json_match else grouping_rules_json
+        
+        try:
+            rules = json.loads(json_str)
+        except Exception:
+            rules = {"groups": [], "explanation": grouping_rules_json}
+
+        if "error" in rules and not rules.get("groups"):
+            error_msg = rules.get("explanation", "Failed to generate grouping rules")
+            raise HTTPException(status_code=500, detail=f"AI grouping failed: {error_msg}")
+
+        if isinstance(data, pd.DataFrame):
+            groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
+        else:
+            groups_with_data = rules.get("groups", [])
+
+        grouped_count = sum(len(group.get("items", [])) for group in groups_with_data)
+
+        # Save to chat history
+        chat = ChatHistory(
+            file_id=req.file_id,
+            user_message=user_msg,
+            ai_response=rules.get("explanation", "Groups created according to your instructions.")
+        )
+        db.add(chat)
+        db.commit()
+        db.refresh(chat)
+
+        # Save grouping
+        grouping = Grouping(
+            file_id=req.file_id,
+            chat_id=chat.id,
+            rules_json=json_str,
+            groups_json=json.dumps(groups_with_data),
+            total_rows=db_file.total_rows,
+            grouped_rows=grouped_count
+        )
+        db.add(grouping)
+        db.commit()
+
+        for group in groups_with_data:
+            group["analytics"] = compute_group_analytics(group.get("items", []))
+
+        return {
+            "status": "success",
+            "is_grouping": True,
+            "reply": rules.get("explanation", "I have organized your data into balanced groups according to your instructions."),
+            "groups": groups_with_data,
+            "total_rows": db_file.total_rows,
+            "grouped_rows": grouped_count
+        }
+
+    # General Question about the file
+    past_chats = db.query(ChatHistory).filter(ChatHistory.file_id == req.file_id).order_by(ChatHistory.timestamp.desc()).limit(6).all()
+    history = []
+    for c in reversed(past_chats):
+        history.append({"role": "user", "content": c.user_message})
+        history.append({"role": "assistant", "content": c.ai_response})
+
+    ai_reply = ai_agent.answer_file_question(data, user_msg, conversation_history=history)
+
+    # Save to chat history
+    chat = ChatHistory(
+        file_id=req.file_id,
+        user_message=user_msg,
+        ai_response=ai_reply
+    )
+    db.add(chat)
+    db.commit()
+
+    return {
+        "status": "success",
+        "is_grouping": False,
+        "reply": ai_reply,
+        "groups": None
+    }
+
+@app.delete("/files/{file_id}", summary="Delete a File and its Chat History")
+async def delete_file_endpoint(file_id: str, db: Session = Depends(get_db)):
+    """Deletes an uploaded file and all associated chat history."""
+    db_file = db.query(DBFile).filter(DBFile.file_id == file_id).first()
+    if not db_file:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    try:
+        if db_file.file_path and os.path.exists(db_file.file_path):
+            os.remove(db_file.file_path)
+    except Exception as e:
+        print("Note removing file from disk:", e)
+        
+    db.delete(db_file)
+    db.commit()
+    return {"status": "success", "message": "File and chat session removed."}
 
 @app.get("/groupings/{file_id}")
 async def get_groupings(file_id: str, db: Session = Depends(get_db)):
@@ -664,23 +848,6 @@ async def get_groupings(file_id: str, db: Session = Depends(get_db)):
         ]
     }
 
-@app.delete("/files/{file_id}")
-async def delete_file(file_id: str, db: Session = Depends(get_db)):
-    """Delete a file and all its associated data"""
-    db_file = db.query(DBFile).filter(DBFile.file_id == file_id).first()
-    if not db_file:
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    # Delete physical file
-    if os.path.exists(db_file.file_path):
-        os.remove(db_file.file_path)
-    
-    
-    # Delete from database (cascades to chat_history and groupings)
-    db.delete(db_file)
-    db.commit()
-    
-    return {"message": "File deleted successfully"}
 
 @app.post("/feedback")
 async def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
@@ -1000,10 +1167,276 @@ async def email_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
         "token": token,
         "user": {
             "id": user.id,
+            "username": user.username,
             "email": user.email,
             "name": user.name,
+            "role": user.role or "user",
             "avatar_url": user.avatar_url
         }
+    }
+
+# ==========================================
+# Username & Strong Password Authentication
+# ==========================================
+
+@app.post("/auth/register", summary="Register with Username, Strong Password, and Email")
+async def register_user(req: UserRegisterRequest, db: Session = Depends(get_db)):
+    """Registers a new user with verified strong password and saves email for future Google sync."""
+    username = req.username.strip().lower()
+    email = req.email.strip().lower()
+
+    if not username or len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters long.")
+    if not re.match(r"^[a-zA-Z0-9_-]+$", username):
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, underscores, and hyphens.")
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Please provide a valid email address.")
+
+    if req.password != req.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match. Please confirm your password.")
+
+    validate_strong_password(req.password)
+
+    # Check uniqueness
+    existing_user = db.query(User).filter(
+        (User.username == username) | (User.email == email)
+    ).first()
+    if existing_user:
+        if existing_user.username == username:
+            raise HTTPException(status_code=400, detail=f"Username '{username}' is already taken. Please choose another.")
+        if existing_user.email == email:
+            raise HTTPException(status_code=400, detail=f"Email '{email}' is already registered. Please sign in instead.")
+
+    display_name = req.name.strip() if req.name else username
+    hashed_pwd = hash_password(req.password)
+
+    new_user = User(
+        username=username,
+        email=email,
+        name=display_name,
+        password_hash=hashed_pwd,
+        role="user",
+        avatar_url=f"https://api.dicebear.com/7.x/initials/svg?seed={username}"
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Automatically save email into tester_requests for future Google OAuth migration
+    existing_tr = db.query(TesterRequest).filter(TesterRequest.email == email).first()
+    if not existing_tr:
+        db.add(TesterRequest(email=email, name=display_name, organization="SortifyAI User", status="registered"))
+        db.commit()
+
+    token = create_access_token({"sub": str(new_user.id), "email": new_user.email, "role": new_user.role or "user"})
+
+    return {
+        "status": "success",
+        "message": "Account created successfully!",
+        "token": token,
+        "user": {
+            "id": new_user.id,
+            "username": new_user.username,
+            "email": new_user.email,
+            "name": new_user.name,
+            "role": new_user.role or "user",
+            "avatar_url": new_user.avatar_url
+        }
+    }
+
+@app.post("/auth/login", summary="Sign In with Username or Email + Password")
+async def login_user(req: UserLoginRequest, db: Session = Depends(get_db)):
+    """Authenticates a user via Username/Email and password."""
+    identifier = req.identifier.strip().lower()
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Please enter your username or email.")
+    if not req.password:
+        raise HTTPException(status_code=400, detail="Please enter your password.")
+
+    user = db.query(User).filter(
+        (User.username == identifier) | (User.email == identifier)
+    ).first()
+
+    if not user or not user.password_hash:
+        raise HTTPException(status_code=401, detail="Invalid username/email or password.")
+
+    if not verify_password(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username/email or password.")
+
+    token = create_access_token({"sub": str(user.id), "email": user.email, "role": user.role or "user"})
+
+    return {
+        "status": "success",
+        "token": token,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role or "user",
+            "avatar_url": user.avatar_url
+        }
+    }
+
+# ==========================================
+# Admin Portal & AI Configuration Management
+# ==========================================
+
+def verify_admin_access(
+    admin_key: Optional[str] = None,
+    user: Optional[User] = None
+) -> bool:
+    if admin_key and admin_key.strip() == ADMIN_KEY:
+        return True
+    if user and user.role == "admin":
+        return True
+    return False
+
+@app.post("/admin/verify", summary="Verify Admin Key")
+async def verify_admin(payload: Dict[str, str]):
+    key = payload.get("admin_key", "")
+    if key.strip() == ADMIN_KEY:
+        return {"status": "success", "valid": True}
+    raise HTTPException(status_code=403, detail="Invalid Admin Passcode.")
+
+@app.get("/admin/ai-configs", summary="Get all configured AI providers")
+async def get_ai_configs(admin_key: Optional[str] = None, db: Session = Depends(get_db)):
+    """Returns AI model configurations for Gemini, OpenAI, GitHub Models, and OpenRouter."""
+    if not verify_admin_access(admin_key=admin_key):
+        raise HTTPException(status_code=403, detail="Unauthorized admin access.")
+
+    configs = db.query(AIConfig).all()
+    results = []
+    for cfg in configs:
+        masked_key = ""
+        if cfg.api_key:
+            clean = cfg.api_key.strip()
+            if len(clean) > 8:
+                masked_key = f"{clean[:4]}••••••••{clean[-4:]}"
+            else:
+                masked_key = "••••••••"
+        results.append({
+            "id": cfg.id,
+            "provider": cfg.provider,
+            "display_name": cfg.display_name,
+            "has_key": bool(cfg.api_key),
+            "masked_key": masked_key,
+            "model": cfg.model,
+            "base_url": cfg.base_url,
+            "is_active": cfg.is_active,
+            "updated_at": cfg.updated_at.isoformat() if cfg.updated_at else None
+        })
+    return {"configs": results}
+
+@app.post("/admin/ai-configs", summary="Save or activate AI Provider Configuration")
+async def save_ai_config(
+    req: SaveAIConfigRequest,
+    admin_key: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Saves API credentials and model for a provider, and immediately updates running AI engine."""
+    if not verify_admin_access(admin_key=admin_key):
+        raise HTTPException(status_code=403, detail="Unauthorized admin access.")
+
+    cfg = db.query(AIConfig).filter(AIConfig.provider == req.provider).first()
+    if not cfg:
+        cfg = AIConfig(
+            provider=req.provider,
+            display_name=req.provider.capitalize(),
+            api_key=req.api_key.strip() if req.api_key else None,
+            model=req.model,
+            base_url=req.base_url,
+            is_active=req.is_active or False
+        )
+        db.add(cfg)
+    else:
+        if req.api_key and not req.api_key.startswith("••"):
+            cfg.api_key = req.api_key.strip()
+        if req.model:
+            cfg.model = req.model.strip()
+        if req.base_url:
+            cfg.base_url = req.base_url.strip()
+        if req.is_active is not None:
+            cfg.is_active = req.is_active
+        cfg.updated_at = datetime.utcnow()
+
+    # If this config was activated, deactivate all other providers
+    if req.is_active:
+        db.query(AIConfig).filter(AIConfig.provider != req.provider).update({"is_active": False})
+
+    db.commit()
+
+    # Reload active AI engine in-memory configuration
+    ai_agent._load_keys()
+    ai_agent._initialize_client()
+
+    return {
+        "status": "success",
+        "message": f"Updated AI provider '{req.provider}' successfully.",
+        "active_provider": ai_agent.provider,
+        "active_model": ai_agent.model
+    }
+
+@app.post("/admin/ai-configs/test", summary="Test AI Provider Connection")
+async def test_ai_provider(
+    req: TestAIConfigRequest,
+    admin_key: Optional[str] = None
+):
+    """Tests connectivity to an AI endpoint (Gemini, OpenAI, GitHub Models, or OpenRouter)."""
+    if not verify_admin_access(admin_key=admin_key):
+        raise HTTPException(status_code=403, detail="Unauthorized admin access.")
+
+    result = AIGroupingAgent.test_connection(
+        provider=req.provider,
+        api_key=req.api_key.strip(),
+        model=req.model.strip(),
+        base_url=req.base_url.strip() if req.base_url else None
+    )
+    return result
+
+@app.get("/admin/users", summary="List All Registered Users and Emails for Future Migration")
+async def list_admin_users(
+    admin_key: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Returns directory of all registered users and their emails to assist future Google migration."""
+    if not verify_admin_access(admin_key=admin_key):
+        raise HTTPException(status_code=403, detail="Unauthorized admin access.")
+
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    emails = [u.email for u in users if u.email]
+    
+    # Also fetch tester_requests for complete picture
+    tester_reqs = db.query(TesterRequest).all()
+    all_unique_emails = list(dict.fromkeys(emails + [t.email for t in tester_reqs if t.email]))
+
+    return {
+        "total_users": len(users),
+        "total_emails_collected": len(all_unique_emails),
+        "comma_separated_emails": ", ".join(all_unique_emails),
+        "users": [
+            {
+                "id": u.id,
+                "username": u.username or "—",
+                "email": u.email,
+                "name": u.name,
+                "role": u.role or "user",
+                "has_password": bool(u.password_hash),
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+                "saved_projects_count": len(u.projects) if u.projects else 0
+            }
+            for u in users
+        ],
+        "tester_waitlist": [
+            {
+                "email": t.email,
+                "name": t.name,
+                "status": t.status,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            }
+            for t in tester_reqs
+        ]
     }
 
 @app.post("/projects/save", summary="Save a Grouping Project to Cloud")

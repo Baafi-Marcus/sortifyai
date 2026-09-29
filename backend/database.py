@@ -126,6 +126,9 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(String, nullable=True)
+    role = Column(String, default="user") # "user" or "admin"
     google_id = Column(String, unique=True, index=True, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
@@ -133,6 +136,19 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+
+class AIConfig(Base):
+    __tablename__ = "ai_configs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String, unique=True, index=True, nullable=False)  # 'gemini', 'openai', 'github', 'openrouter'
+    display_name = Column(String, nullable=False)
+    api_key = Column(String, nullable=True)
+    model = Column(String, nullable=True)
+    base_url = Column(String, nullable=True)
+    is_active = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
 class Project(Base):
     __tablename__ = "projects"
@@ -159,9 +175,67 @@ class TesterRequest(Base):
     status = Column(String, default="pending")  # pending, added
     created_at = Column(DateTime, default=datetime.utcnow)
 
-# Create tables
+# Create tables and run safe migrations
 def init_db():
+    from sqlalchemy import text
     Base.metadata.create_all(bind=engine)
+    
+    # Safe column additions if table already existed
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR;"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR;"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'user';"))
+            conn.commit()
+        except Exception as e:
+            print("Note on user columns migration:", e)
+            
+    # Seed default AI configs if not present
+    db = SessionLocal()
+    try:
+        existing_count = db.query(AIConfig).count()
+        if existing_count == 0:
+            default_configs = [
+                AIConfig(
+                    provider="gemini",
+                    display_name="Google Gemini",
+                    api_key=os.getenv("GEMINI_API_KEY", ""),
+                    model="gemini-1.5-flash",
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                    is_active=False
+                ),
+                AIConfig(
+                    provider="openai",
+                    display_name="OpenAI (GPT-4o)",
+                    api_key=os.getenv("OPENAI_API_KEY", ""),
+                    model="gpt-4o-mini",
+                    base_url="https://api.openai.com/v1",
+                    is_active=False
+                ),
+                AIConfig(
+                    provider="github",
+                    display_name="GitHub Models",
+                    api_key=os.getenv("GITHUB_TOKEN", os.getenv("GITHUB_MODELS_KEY", "")),
+                    model="gpt-4o-mini",
+                    base_url="https://models.inference.ai.azure.com",
+                    is_active=False
+                ),
+                AIConfig(
+                    provider="openrouter",
+                    display_name="OpenRouter",
+                    api_key=os.getenv("OPENROUTER_API_KEY", ""),
+                    model="openai/gpt-4o-mini",
+                    base_url="https://openrouter.ai/api/v1",
+                    is_active=True
+                )
+            ]
+            db.add_all(default_configs)
+            db.commit()
+    except Exception as e:
+        print("Note on seeding AI configs:", e)
+        db.rollback()
+    finally:
+        db.close()
 
 # Dependency for FastAPI
 def get_db():
@@ -170,3 +244,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

@@ -54,12 +54,6 @@ const LandingPage = ({
                 </div>
               )}
 
-              <button
-                onClick={onOpenDeveloperApi}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-standard"
-              >
-                <span>Documentation</span>
-              </button>
 
               {/* User Authentication / Profile */}
               {currentUser ? (
@@ -88,14 +82,9 @@ const LandingPage = ({
               ) : (
                 <button
                   onClick={onOpenAuth}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 hover:text-white transition-standard"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 hover:text-white transition-standard"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.74-2.1-6.68-4.94H1.28v3.13C3.28 21.36 7.36 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.32 14.26c-.24-.73-.38-1.5-.38-2.26s.14-1.53.38-2.26V6.61H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.39l4.04-3.13z"/>
-                    <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.94 1.19 15.24 0 12 0 7.36 0 3.28 2.64 1.28 6.61l4.04 3.13c.94-2.84 3.58-4.97 6.68-4.97z"/>
-                  </svg>
+                  <UserCircleIcon className="w-4 h-4 text-cyan-400" />
                   <span>Sign In</span>
                 </button>
               )}
@@ -131,20 +120,13 @@ const LandingPage = ({
           </p>
 
           {/* Functional Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
+          <div className="flex justify-center items-center pt-2">
             <button
               onClick={onGetStarted}
-              className="w-full sm:w-auto px-6 py-3 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold text-sm rounded transition-standard hover-subtle flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-3.5 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold text-sm rounded transition-standard hover-subtle flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10"
             >
               <span>Upload Student Roster</span>
               <ArrowRightIcon className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={onTrySample}
-              className="w-full sm:w-auto px-6 py-3 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-standard hover-subtle flex items-center justify-center gap-2"
-            >
-              <span>Load Sample Data (500 Records)</span>
             </button>
           </div>
 
@@ -317,13 +299,6 @@ const LandingPage = ({
             >
               Baafi O. Marcus
             </a>
-            <span>•</span>
-            <button 
-              onClick={onOpenDeveloperApi}
-              className="text-slate-300 hover:text-white underline font-medium"
-            >
-              Documentation
-            </button>
             <span>•</span>
             <a 
               href="/privacy.html"

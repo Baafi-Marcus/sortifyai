@@ -161,25 +161,7 @@ const FileInspector = ({
             </div>
           )}
 
-          {/* Quick Sample Button */}
-          <div className="p-4 rounded-md bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
-                <TableCellsIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-white">Load Benchmark Sample Roster</p>
-                <p className="text-xs text-slate-400">Test immediately with 120 verified Ghanaian student cohort records.</p>
-              </div>
-            </div>
-            <button
-              onClick={onLoadSample}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium transition-standard border border-slate-700 shrink-0"
-            >
-              Load Sample Roster
-            </button>
           </div>
-        </div>
       )}
 
       {/* File Detected Card & Data Preview */}

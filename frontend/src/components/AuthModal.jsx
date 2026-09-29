@@ -1,394 +1,451 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import axios from 'axios';
-import { 
-  XMarkIcon, 
-  ShieldCheckIcon, 
-  CloudArrowUpIcon,
-  ClockIcon,
+import {
+  XMarkIcon,
+  ShieldCheckIcon,
   UserCircleIcon,
   ArrowPathIcon,
+  LockClosedIcon,
   EnvelopeIcon,
-  CheckCircleIcon
+  CheckIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
-  const [activeTab, setActiveTab] = useState('google'); // 'google' | 'email' | 'request_tester'
+  const [activeTab, setActiveTab] = useState('register'); // 'register' | 'login'
+  
+  // Registration form state
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
+
+  // Login form state
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
+  // Request state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Email login form state
-  const [emailInput, setEmailInput] = useState('');
-  const [nameInput, setNameInput] = useState('');
-
-  // Tester whitelist request state
-  const [testerEmail, setTesterEmail] = useState('');
-  const [testerName, setTesterName] = useState('');
-  const [testerOrg, setTesterOrg] = useState('');
-  const [testerSubmitted, setTesterSubmitted] = useState(false);
-
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Load Google Identity Services SDK dynamically
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (window.google && googleClientId) {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleGoogleCredentialResponse,
-        });
-        const buttonDiv = document.getElementById('google-signin-button-render');
-        if (buttonDiv) {
-          window.google.accounts.id.renderButton(buttonDiv, {
-            theme: 'filled_blue',
-            size: 'large',
-            shape: 'rectangular',
-            width: 320,
-            text: 'continue_with'
-          });
-        }
-      }
+  // Password Strength Evaluation
+  const passwordCriteria = useMemo(() => {
+    const pwd = regPassword || '';
+    return {
+      minLength: pwd.length >= 8,
+      hasUpper: /[A-Z]/.test(pwd),
+      hasLower: /[a-z]/.test(pwd),
+      hasNumber: /[0-9]/.test(pwd),
+      hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':",.<>/?\\|`~]/.test(pwd),
     };
-    document.body.appendChild(script);
+  }, [regPassword]);
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [isOpen, googleClientId, activeTab]);
+  const strengthScore = useMemo(() => {
+    let score = 0;
+    if (passwordCriteria.minLength) score += 1;
+    if (passwordCriteria.hasUpper && passwordCriteria.hasLower) score += 1;
+    if (passwordCriteria.hasNumber) score += 1;
+    if (passwordCriteria.hasSpecial) score += 1;
+    return score;
+  }, [passwordCriteria]);
+
+  const isPasswordStrong = strengthScore === 4;
+  const passwordsMatch = regPassword && regConfirmPassword && regPassword === regConfirmPassword;
+  const isUsernameValid = regUsername.trim().length >= 3 && /^[a-zA-Z0-9_-]+$/.test(regUsername.trim());
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail.trim());
+
+  const canRegister = isUsernameValid && isPasswordStrong && passwordsMatch && isEmailValid;
 
   if (!isOpen) return null;
 
-  // Handle Google Token Response from SDK
-  const handleGoogleCredentialResponse = async (response) => {
+  // Handle User Registration
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!canRegister || loading) return;
+
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
+
     try {
-      const res = await axios.post(`${apiUrl}/auth/google`, {
-        credential: response.credential
+      const res = await axios.post(`${apiUrl}/auth/register`, {
+        username: regUsername.trim(),
+        password: regPassword,
+        confirm_password: regConfirmPassword,
+        email: regEmail.trim(),
+        name: regUsername.trim()
       });
+
       if (res.data?.status === 'success') {
-        onLoginSuccess(res.data.user, res.data.token);
-        onClose();
+        setSuccessMsg("Account created successfully!");
+        setTimeout(() => {
+          onLoginSuccess(res.data.user, res.data.token);
+          onClose();
+        }, 600);
       }
     } catch (err) {
-      console.error('Google Sign-in failed:', err);
-      setError(err.response?.data?.detail || 'Failed to authenticate with Google. If your account is not yet on the test user list, use Email Sign-In below.');
+      console.error('Registration failed:', err);
+      setError(err.response?.data?.detail || 'Failed to create account. Please verify input.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Direct Passwordless Email Sign-In / Account Creation
-  const handleEmailLoginSubmit = async (e) => {
+  // Handle User Login
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (!emailInput.trim()) {
-      setError('Please provide your email address.');
-      return;
-    }
+    if (!loginIdentifier || !loginPassword || loading) return;
+
     setLoading(true);
     setError(null);
+
     try {
-      const res = await axios.post(`${apiUrl}/auth/email-login`, {
-        email: emailInput.trim(),
-        name: nameInput.trim() || emailInput.split('@')[0]
+      const res = await axios.post(`${apiUrl}/auth/login`, {
+        identifier: loginIdentifier.trim(),
+        password: loginPassword
       });
+
       if (res.data?.status === 'success') {
         onLoginSuccess(res.data.user, res.data.token);
         onClose();
       }
     } catch (err) {
-      console.error('Email sign-in failed:', err);
-      setError(err.response?.data?.detail || 'Failed to sign in with email.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Submit request to be added to Google OAuth testing whitelist
-  const handleRequestTesterSubmit = async (e) => {
-    e.preventDefault();
-    if (!testerEmail.trim()) {
-      setError('Please provide a valid Gmail address.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.post(`${apiUrl}/auth/request-tester`, {
-        email: testerEmail.trim(),
-        name: testerName.trim() || undefined,
-        organization: testerOrg.trim() || undefined
-      });
-      if (res.data?.status === 'success') {
-        setTesterSubmitted(true);
-        setSuccessMsg(res.data.message || 'Your email has been added to the Google OAuth testing whitelist queue.');
-      }
-    } catch (err) {
-      console.error('Tester request failed:', err);
-      setError(err.response?.data?.detail || 'Could not submit tester request. Please try again.');
+      console.error('Login failed:', err);
+      setError(err.response?.data?.detail || 'Invalid username/email or password.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fadeIn">
-      <div className="relative w-full max-w-md rounded-md bg-slate-900 border border-slate-700 p-6 sm:p-8 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-md rounded-xl bg-slate-900 border border-slate-700/80 shadow-2xl p-6 sm:p-7 space-y-5 max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
           aria-label="Close authentication dialog"
-          className="absolute top-4 right-4 p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-standard"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-standard"
         >
           <XMarkIcon className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="text-center space-y-1">
-          <div className="mx-auto w-9 h-9 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary">
-            <UserCircleIcon className="w-5 h-5" />
+        <div className="text-center space-y-1.5">
+          <div className="mx-auto w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-1">
+            <LockClosedIcon className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-semibold text-white">Sign In to SortifyAI</h3>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-normal">
-            Save and access balanced student groups in your secure cloud database.
+          <h3 className="text-lg font-semibold text-white">
+            {activeTab === 'register' ? 'Create Your SortifyAI Account' : 'Sign In to SortifyAI'}
+          </h3>
+          <p className="text-xs text-slate-400 max-w-xs mx-auto">
+            {activeTab === 'register' 
+              ? 'Create your account with a username and strong password.' 
+              : 'Sign in to access your cloud cohorts and saved allocations.'}
           </p>
         </div>
 
-        {/* Auth Mode Tabs */}
-        <div className="flex rounded bg-slate-950 border border-slate-800 p-0.5 text-xs font-medium">
+        {/* Tab Switcher */}
+        <div className="grid grid-cols-2 p-1 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs font-semibold">
           <button
-            onClick={() => { setActiveTab('google'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-1.5 rounded transition-standard ${
-              activeTab === 'google'
-                ? "bg-slate-800 text-white font-semibold"
-                : "text-slate-400 hover:text-slate-200"
+            type="button"
+            onClick={() => { setActiveTab('register'); setError(null); }}
+            className={`py-2 rounded-md transition-standard ${
+              activeTab === 'register'
+                ? 'bg-brand-primary text-slate-900 shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            Google OAuth
+            Create Account
           </button>
           <button
-            onClick={() => { setActiveTab('email'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-1.5 rounded transition-standard ${
-              activeTab === 'email'
-                ? "bg-slate-800 text-white font-semibold"
-                : "text-slate-400 hover:text-slate-200"
+            type="button"
+            onClick={() => { setActiveTab('login'); setError(null); }}
+            className={`py-2 rounded-md transition-standard ${
+              activeTab === 'login'
+                ? 'bg-brand-primary text-slate-900 shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            Instant Email Sign-In
+            Sign In
           </button>
         </div>
 
+        {/* Feedback Alerts */}
         {error && (
-          <div className="p-3 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
             {error}
           </div>
         )}
 
         {successMsg && (
-          <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
-            <CheckCircleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckIcon className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Tab 1: Google OAuth */}
-        {activeTab === 'google' && (
-          <div className="space-y-4">
-            <div className="flex justify-center pt-2">
-              <div id="google-signin-button-render"></div>
+        {/* TAB 1: REGISTRATION FORM */}
+        {activeTab === 'register' && (
+          <form onSubmit={handleRegister} className="space-y-4 text-xs">
+            {/* Username */}
+            <div className="space-y-1">
+              <label className="block text-slate-300 font-medium">
+                Username <span className="text-cyan-400">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. marcus_lead"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono text-xs"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500">At least 3 characters, letters, numbers, and dashes.</p>
             </div>
 
-            {/* Tester Whitelist Helper Callout */}
-            <div className="p-3.5 rounded bg-slate-800/40 border border-slate-800 space-y-2 text-xs">
+            {/* Email Address */}
+            <div className="space-y-1">
+              <label className="block text-slate-300 font-medium">
+                Email Address <span className="text-cyan-400">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  placeholder="your.email@school.edu"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Strong Password */}
+            <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between">
-                <span className="text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                  Beta Testing Program
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                  100 User Cap
+                <label className="block text-slate-300 font-medium">
+                  Strong Password <span className="text-cyan-400">*</span>
+                </label>
+                <span className={`text-[10px] font-semibold ${
+                  strengthScore === 4 ? 'text-emerald-400' :
+                  strengthScore === 3 ? 'text-cyan-400' :
+                  strengthScore === 2 ? 'text-amber-400' : 'text-rose-400'
+                }`}>
+                  {regPassword ? (
+                    strengthScore === 4 ? 'Very Strong' :
+                    strengthScore === 3 ? 'Strong' :
+                    strengthScore === 2 ? 'Moderate' : 'Weak'
+                  ) : 'Required'}
                 </span>
               </div>
-              <p className="text-slate-400 text-xs leading-normal">
-                Google OAuth is currently in testing status. If your Gmail has not been added to the whitelist yet, submit it below or use Instant Email Sign-In.
-              </p>
 
-              <button
-                type="button"
-                onClick={() => { setActiveTab('request_tester'); setError(null); }}
-                className="text-cyan-400 hover:text-cyan-300 font-semibold underline text-xs block"
-              >
-                + Submit my Gmail to join the tester whitelist
-              </button>
-            </div>
-          </div>
-        )}
+              <div className="relative">
+                <input
+                  type={showRegPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter strong password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  className="w-full px-3 py-2 pr-10 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                >
+                  {showRegPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                </button>
+              </div>
 
-        {/* Tab 2: Direct Passwordless Email Sign-In */}
-        {activeTab === 'email' && (
-          <form onSubmit={handleEmailLoginSubmit} className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Your Name</label>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="e.g. Kofi Mensah"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
-              />
+              {/* Strength Visual Bar */}
+              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                <div className={`h-1 rounded-full transition-all duration-300 ${
+                  strengthScore >= 1 ? 'bg-rose-500' : 'bg-slate-700'
+                }`} />
+                <div className={`h-1 rounded-full transition-all duration-300 ${
+                  strengthScore >= 2 ? 'bg-amber-500' : 'bg-slate-700'
+                }`} />
+                <div className={`h-1 rounded-full transition-all duration-300 ${
+                  strengthScore >= 3 ? 'bg-cyan-500' : 'bg-slate-700'
+                }`} />
+                <div className={`h-1 rounded-full transition-all duration-300 ${
+                  strengthScore === 4 ? 'bg-emerald-500' : 'bg-slate-700'
+                }`} />
+              </div>
+
+              {/* Checklist */}
+              <div className="grid grid-cols-2 gap-1 pt-1.5 text-[10px] text-slate-400 bg-slate-800/40 p-2 rounded-lg border border-slate-800">
+                <div className={`flex items-center gap-1.5 ${passwordCriteria.minLength ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                  <span>{passwordCriteria.minLength ? '✓' : '•'}</span>
+                  <span>Min 8 characters</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${passwordCriteria.hasUpper ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                  <span>{passwordCriteria.hasUpper ? '✓' : '•'}</span>
+                  <span>1 Uppercase (A-Z)</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${passwordCriteria.hasNumber ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                  <span>{passwordCriteria.hasNumber ? '✓' : '•'}</span>
+                  <span>1 Number (0-9)</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${passwordCriteria.hasSpecial ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                  <span>{passwordCriteria.hasSpecial ? '✓' : '•'}</span>
+                  <span>1 Symbol (!@#$...)</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address *</label>
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="teacher@school.edu.gh"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
-              />
+
+            {/* Confirm Password */}
+            <div className="space-y-1 pt-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-slate-300 font-medium">
+                  Confirm Password <span className="text-cyan-400">*</span>
+                </label>
+                {regConfirmPassword && (
+                  <span className={`text-[10px] font-medium ${passwordsMatch ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {passwordsMatch ? '✓ Matches' : '✗ Does not match'}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type={showRegConfirm ? 'text' : 'password'}
+                  required
+                  placeholder="Re-enter password"
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                  className={`w-full px-3 py-2 pr-10 rounded-lg bg-slate-800/90 border text-white placeholder-slate-500 focus:outline-none text-xs ${
+                    regConfirmPassword && !passwordsMatch
+                      ? 'border-rose-500/80 focus:border-rose-400'
+                      : 'border-slate-700 focus:border-cyan-400'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirm(!showRegConfirm)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                >
+                  {showRegConfirm ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
+
+            {/* Submit Register Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold rounded text-xs transition-standard hover-subtle disabled:opacity-50 flex items-center justify-center gap-1.5"
+              disabled={!canRegister || loading}
+              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold text-xs transition-standard disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10"
             >
               {loading ? (
                 <>
-                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-slate-900" />
-                  <span>Signing In...</span>
+                  <ArrowPathIcon className="w-4 h-4 animate-spin text-slate-900" />
+                  <span>Creating Account...</span>
                 </>
               ) : (
                 <>
-                  <EnvelopeIcon className="w-3.5 h-3.5" />
-                  <span>Sign In & Save to Cloud</span>
+                  <ShieldCheckIcon className="w-4 h-4 text-slate-900" />
+                  <span>Complete Registration</span>
                 </>
               )}
             </button>
-            <p className="text-[11px] text-slate-500 text-center">
-              No password needed. An account will be automatically provisioned in your Neon database.
-            </p>
           </form>
         )}
 
-        {/* Tab 3: Request Tester Whitelist Submission */}
-        {activeTab === 'request_tester' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold text-white">Join Google OAuth Tester Whitelist</h4>
-              <button
-                type="button"
-                onClick={() => setActiveTab('google')}
-                className="text-xs text-slate-400 hover:text-white"
-              >
-                ← Back
-              </button>
+        {/* TAB 2: SIGN IN FORM */}
+        {activeTab === 'login' && (
+          <form onSubmit={handleLogin} className="space-y-4 text-xs">
+            {/* Username or Email */}
+            <div className="space-y-1">
+              <label className="block text-slate-300 font-medium">
+                Username or Email
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Enter username or email address"
+                value={loginIdentifier}
+                onChange={(e) => setLoginIdentifier(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-xs"
+              />
             </div>
 
-            {testerSubmitted ? (
-              <div className="p-4 rounded bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2">
-                <CheckCircleIcon className="w-8 h-8 text-emerald-400 mx-auto" />
-                <p className="text-xs font-semibold text-white">Request Received!</p>
-                <p className="text-[11px] text-slate-300 leading-normal">
-                  Your Gmail has been submitted to the tester queue. In the meantime, you can immediately sign in via the <strong>Instant Email Sign-In</strong> tab!
-                </p>
+            {/* Password */}
+            <div className="space-y-1">
+              <label className="block text-slate-300 font-medium">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter your password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full px-3 py-2 pr-10 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-xs"
+                />
                 <button
                   type="button"
-                  onClick={() => setActiveTab('email')}
-                  className="mt-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-medium border border-slate-700 transition-standard"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
                 >
-                  Continue to Instant Sign-In →
+                  {showLoginPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleRequestTesterSubmit} className="space-y-2.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Gmail Address *</label>
-                  <input
-                    type="email"
-                    required
-                    value={testerEmail}
-                    onChange={(e) => setTesterEmail(e.target.value)}
-                    placeholder="your.account@gmail.com"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name (Optional)</label>
-                  <input
-                    type="text"
-                    value={testerName}
-                    onChange={(e) => setTesterName(e.target.value)}
-                    placeholder="e.g. Kwame Mensah"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">School / Organization (Optional)</label>
-                  <input
-                    type="text"
-                    value={testerOrg}
-                    onChange={(e) => setTesterOrg(e.target.value)}
-                    placeholder="e.g. Prempeh College / University of Ghana"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
-                  />
-                </div>
+            </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold rounded text-xs transition-standard hover-subtle disabled:opacity-50 flex items-center justify-center gap-1.5"
-                >
-                  {loading ? (
-                    <>
-                      <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-slate-900" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <span>Submit Tester Request</span>
-                  )}
-                </button>
-              </form>
-            )}
-          </div>
+            {/* Submit Sign In Button */}
+            <button
+              type="submit"
+              disabled={!loginIdentifier || !loginPassword || loading}
+              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold text-xs transition-standard disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10"
+            >
+              {loading ? (
+                <>
+                  <ArrowPathIcon className="w-4 h-4 animate-spin text-slate-900" />
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                <span>Sign In to Account</span>
+              )}
+            </button>
+          </form>
         )}
 
-        {/* Benefits list */}
-        <div className="space-y-1.5 rounded bg-slate-800/40 border border-slate-800 p-3 text-[11px] text-slate-300">
-          <div className="flex items-center gap-2">
-            <CloudArrowUpIcon className="w-3.5 h-3.5 text-brand-primary shrink-0" />
-            <span>Save multiple projects to your Neon cloud database</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Strict educational student data privacy</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ClockIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>Access historical cohorts and reassign records anytime</span>
-          </div>
+        {/* Footer Note */}
+        <div className="pt-2 border-t border-slate-800 text-center">
+          <p className="text-[10px] text-slate-500">
+            {activeTab === 'register' ? (
+              <span>
+                Already have an account?{' '}
+                <button 
+                  onClick={() => { setActiveTab('login'); setError(null); }}
+                  className="text-cyan-400 hover:underline font-medium"
+                >
+                  Sign in here
+                </button>
+              </span>
+            ) : (
+              <span>
+                Need an account?{' '}
+                <button 
+                  onClick={() => { setActiveTab('register'); setError(null); }}
+                  className="text-cyan-400 hover:underline font-medium"
+                >
+                  Register in 30 seconds
+                </button>
+              </span>
+            )}
+          </p>
         </div>
-
-        {/* Footer */}
-        <p className="text-[11px] text-center text-slate-400 leading-normal">
-          By signing in, you agree to SortifyAI's{' '}
-          <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
-            Terms of Service
-          </a>{' '}
-          and{' '}
-          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
-            Privacy Policy
-          </a>
-          .
-        </p>
       </div>
     </div>
   );

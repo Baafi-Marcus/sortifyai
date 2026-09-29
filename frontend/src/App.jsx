@@ -32,7 +32,6 @@ const App = () => {
   const [fileData, setFileData] = useState(null);
   const [groups, setGroups] = useState([]);
   const [decisionSummary, setDecisionSummary] = useState(null);
-  const [currentPrompt, setCurrentPrompt] = useState("");
 
   // Modals
   const [showExportModal, setShowExportModal] = useState(false);

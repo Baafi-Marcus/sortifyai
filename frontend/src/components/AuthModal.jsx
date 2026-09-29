@@ -44,7 +44,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
       hasUpper: /[A-Z]/.test(pwd),
       hasLower: /[a-z]/.test(pwd),
       hasNumber: /[0-9]/.test(pwd),
-      hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':",.<>/?\\|`~]/.test(pwd),
+      hasSpecial: /[!@#$%^&*()_+\-=[\]{};':",.<>/?\\|`~]/.test(pwd),
     };
   }, [regPassword]);
 

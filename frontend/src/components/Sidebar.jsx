@@ -28,12 +28,10 @@ const Sidebar = ({
   refreshTrigger
 }) => {
   const [filesList, setFilesList] = useState([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   // Load list of files / recent chats
   const fetchRecentFiles = async () => {
-    setLoadingFiles(true);
     try {
       const res = await axios.get(`${apiUrl}/files`);
       if (res.data?.files) {
@@ -41,8 +39,6 @@ const Sidebar = ({
       }
     } catch (err) {
       console.warn("Could not load recent files list:", err);
-    } finally {
-      setLoadingFiles(false);
     }
   };
 

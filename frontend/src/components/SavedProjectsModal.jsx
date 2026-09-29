@@ -46,6 +46,7 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
         onClose();
       }
     } catch (err) {
+      console.error(err);
       alert('Failed to load project details.');
     }
   };
@@ -59,6 +60,7 @@ const SavedProjectsModal = ({ isOpen, onClose, token, onLoadProject }) => {
       });
       setProjects(projects.filter(p => p.id !== projectId));
     } catch (err) {
+      console.error(err);
       alert('Failed to delete project.');
     }
   };

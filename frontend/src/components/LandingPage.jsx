@@ -19,9 +19,7 @@ import {
 
 const LandingPage = ({ 
   onGetStarted, 
-  onTrySample, 
   serverStatus, 
-  onOpenDeveloperApi,
   currentUser,
   onOpenAuth,
   onOpenSavedProjects,

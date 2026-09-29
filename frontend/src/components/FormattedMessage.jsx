@@ -92,7 +92,7 @@ const FormattedMessage = ({ content }) => {
     // Check for Bullet Lists
     if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
       flushParagraph();
-      const itemText = line.replace(/^[•\-\*]\s+/, '');
+      const itemText = line.replace(/^[•\-*]\s+/, '');
       if (!currentList || currentList.type !== 'ul') {
         flushList();
         currentList = { type: 'ul', items: [itemText] };

@@ -26,7 +26,6 @@ const ChatInterface = ({
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -84,7 +83,6 @@ const ChatInterface = ({
         ]);
       } finally {
         setLoading(false);
-        setHistoryLoaded(true);
       }
     };
 

@@ -98,6 +98,7 @@ const AdminPage = ({ onBack }) => {
         setIsUnlocked(true);
       }
     } catch (err) {
+      console.error(err);
       setPasscodeError('Invalid Admin Passcode. Please try again.');
     }
   };

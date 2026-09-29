@@ -57,6 +57,15 @@ const App = () => {
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+  // Handle SPA 404 Routing for invalid paths
+  useEffect(() => {
+    const path = window.location.pathname;
+    // Allow root and any valid html pages in the public directory (like privacy.html, 404.html)
+    if (path !== '/' && !path.endsWith('.html')) {
+      window.location.href = '/404.html';
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const pingBackend = async () => {

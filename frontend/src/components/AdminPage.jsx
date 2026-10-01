@@ -16,7 +16,8 @@ import {
   EyeSlashIcon,
   UserGroupIcon,
   ArrowDownTrayIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 const PROVIDER_METADATA = {

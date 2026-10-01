@@ -130,7 +130,9 @@ class UserLoginRequest(BaseModel):
     password: str
 
 class SaveAIConfigRequest(BaseModel):
+    id: Optional[int] = None
     provider: str  # 'gemini', 'openai', 'github', 'openrouter'
+    key_name: Optional[str] = "Default Key"
     api_key: str
     model: Optional[str] = None
     base_url: Optional[str] = None
@@ -1322,9 +1324,11 @@ async def get_ai_configs(admin_key: Optional[str] = None, db: Session = Depends(
             "display_name": cfg.display_name,
             "has_key": bool(cfg.api_key),
             "masked_key": masked_key,
+            "key_name": getattr(cfg, 'key_name', 'Default Key'),
             "model": cfg.model,
             "base_url": cfg.base_url,
             "is_active": cfg.is_active,
+            "is_working": getattr(cfg, 'is_working', True),
             "updated_at": cfg.updated_at.isoformat() if cfg.updated_at else None
         })
     return {"configs": results}
@@ -1339,10 +1343,15 @@ async def save_ai_config(
     if not verify_admin_access(admin_key=admin_key):
         raise HTTPException(status_code=403, detail="Unauthorized admin access.")
 
-    cfg = db.query(AIConfig).filter(AIConfig.provider == req.provider).first()
+    if req.id:
+        cfg = db.query(AIConfig).filter(AIConfig.id == req.id).first()
+    else:
+        cfg = None
+
     if not cfg:
         cfg = AIConfig(
             provider=req.provider,
+            key_name=req.key_name or "Default Key",
             display_name=req.provider.capitalize(),
             api_key=req.api_key.strip() if req.api_key else None,
             model=req.model,
@@ -1353,6 +1362,8 @@ async def save_ai_config(
     else:
         if req.api_key and not req.api_key.startswith("••"):
             cfg.api_key = req.api_key.strip()
+        if req.key_name:
+            cfg.key_name = req.key_name.strip()
         if req.model:
             cfg.model = req.model.strip()
         if req.base_url:
@@ -1377,6 +1388,20 @@ async def save_ai_config(
         "active_provider": ai_agent.provider,
         "active_model": ai_agent.model
     }
+
+@app.delete("/admin/ai-configs/{config_id}", summary="Delete an AI Provider Configuration")
+async def delete_ai_config(config_id: int, admin_key: Optional[str] = None, db: Session = Depends(get_db)):
+    if not verify_admin_access(admin_key=admin_key):
+        raise HTTPException(status_code=403, detail="Unauthorized admin access.")
+    cfg = db.query(AIConfig).filter(AIConfig.id == config_id).first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="Config not found.")
+    db.delete(cfg)
+    db.commit()
+    
+    ai_agent._load_keys()
+    ai_agent._initialize_client()
+    return {"status": "success", "message": "Deleted config successfully."}
 
 @app.post("/admin/ai-configs/test", summary="Test AI Provider Connection")
 async def test_ai_provider(

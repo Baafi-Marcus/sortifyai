@@ -28,13 +28,17 @@ class AIGroupingAgent:
             db = SessionLocal()
             active_cfg = db.query(AIConfig).filter(AIConfig.is_active == True).first()
             if active_cfg and active_cfg.api_key:
+                # Get all active keys for this provider
+                all_active = db.query(AIConfig).filter(AIConfig.provider == active_cfg.provider, AIConfig.is_active == True, AIConfig.is_working == True).all()
                 self.provider = active_cfg.provider
                 self.model = active_cfg.model or "gpt-4o-mini"
                 self.base_url = active_cfg.base_url or "https://api.openai.com/v1"
-                self.api_keys = [active_cfg.api_key.strip()]
+                self.api_keys = [cfg.api_key.strip() for cfg in all_active if cfg.api_key]
+                if not self.api_keys:
+                    self.api_keys = [active_cfg.api_key.strip()]
                 self.current_key_index = 0
                 db.close()
-                print(f"✓ Loaded active AI Provider '{self.provider}' (Model: {self.model}) from Database")
+                print(f"✓ Loaded active AI Provider '{self.provider}' (Model: {self.model}) with {len(self.api_keys)} keys from Database")
                 return
             db.close()
         except Exception as e:

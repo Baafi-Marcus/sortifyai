@@ -77,6 +77,16 @@ const AdminPage = ({ onBack }) => {
   const [testResults, setTestResults] = useState({});
   const [showKeyMap, setShowKeyMap] = useState({});
   const [editForms, setEditForms] = useState({});
+  const [keyForm, setKeyForm] = useState({
+    id: null,
+    provider: 'openai',
+    key_name: '',
+    api_key: '',
+    model: 'gpt-4o-mini',
+    base_url: 'https://api.openai.com/v1',
+    is_active: false
+  });
+  const [showKey, setShowKey] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -179,34 +189,80 @@ const AdminPage = ({ onBack }) => {
   };
 
   // Test Connection
-  const handleTestConnection = async (provider) => {
-    const form = editForms[provider] || {};
-    const keyToTest = form.api_key;
+  const handleTestConnection = async (config) => {
+    const keyToTest = config.api_key;
+    const provider = config.provider;
 
-    if (!keyToTest) {
+    if (!keyToTest && !config.has_key) {
       alert(`Please enter an API Key for ${provider.toUpperCase()} before testing.`);
       return;
     }
 
-    setTestingProvider(provider);
-    setTestResults(prev => ({ ...prev, [provider]: null }));
+    setTestingProvider(config.id || 'new');
+    setTestResults(prev => ({ ...prev, [config.id || 'new']: null }));
 
     try {
       const res = await axios.post(`${apiUrl}/admin/ai-configs/test?admin_key=${encodeURIComponent(adminKey)}`, {
         provider,
-        api_key: keyToTest,
-        model: form.model || PROVIDER_METADATA[provider]?.defaultModel,
-        base_url: form.base_url || PROVIDER_METADATA[provider]?.defaultBaseUrl
+        api_key: keyToTest || 'dummy', // Backend will use stored key if masked? Actually backend test_ai_provider requires full key. We'll pass it if available.
+        model: config.model || PROVIDER_METADATA[provider]?.defaultModel,
+        base_url: config.base_url || PROVIDER_METADATA[provider]?.defaultBaseUrl
       });
-      setTestResults(prev => ({ ...prev, [provider]: res.data }));
+      setTestResults(prev => ({ ...prev, [config.id || 'new']: res.data }));
+      fetchAdminData(); // Refresh to update is_working state if we add it later
     } catch (err) {
       setTestResults(prev => ({
         ...prev,
-        [provider]: { success: false, error: err.response?.data?.detail || err.message }
+        [config.id || 'new']: { success: false, error: err.response?.data?.detail || err.message }
       }));
     } finally {
       setTestingProvider(null);
     }
+  };
+
+  const handleDeleteConfig = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this key?")) return;
+    try {
+      await axios.delete(`${apiUrl}/admin/ai-configs/${id}?admin_key=${encodeURIComponent(adminKey)}`);
+      showToast('Key deleted successfully.');
+      fetchAdminData();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Failed to delete key.');
+    }
+  };
+
+  const handleSaveKeyForm = async () => {
+    try {
+      const payload = { ...keyForm };
+      const res = await axios.post(`${apiUrl}/admin/ai-configs?admin_key=${encodeURIComponent(adminKey)}`, payload);
+      showToast(res.data?.message || `Configuration saved.`);
+      setKeyForm({
+        id: null,
+        provider: 'openai',
+        key_name: '',
+        api_key: '',
+        model: 'gpt-4o-mini',
+        base_url: 'https://api.openai.com/v1',
+        is_active: false
+      });
+      fetchAdminData();
+    } catch (err) {
+      console.error('Failed to save config:', err);
+      showToast(err.response?.data?.detail || 'Failed to save configuration.');
+    }
+  };
+
+  const handleEditConfig = (cfg) => {
+    setKeyForm({
+      id: cfg.id,
+      provider: cfg.provider,
+      key_name: cfg.key_name || '',
+      api_key: '', // require re-entry or leave blank to keep
+      model: cfg.model,
+      base_url: cfg.base_url,
+      is_active: cfg.is_active
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Copy All Emails to Clipboard
@@ -442,203 +498,255 @@ const AdminPage = ({ onBack }) => {
         </div>
 
         {/* ============================================================== */}
-        {/* TAB 1: AI MODEL PROVIDERS (Gemini, OpenAI, GitHub Models, etc.) */}
+        {/* TAB 1: AI MODEL PROVIDERS (Key Rotation & Management) */}
         {/* ============================================================== */}
         {activeTab === 'ai' && (
           <div className="space-y-6">
             <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
               <div>
-                <h4 className="font-semibold text-white">AI Provider Management</h4>
+                <h4 className="font-semibold text-white">AI Provider & Key Rotation</h4>
                 <p className="text-slate-400 text-[11px]">
-                  Configure your API keys for Google Gemini, OpenAI, GitHub Models, or OpenRouter. The active provider runs live groupings for users.
+                  Add multiple keys for the same provider to enable automatic rotation. Only keys belonging to the Active Provider will be used.
                 </p>
               </div>
             </div>
 
-            {/* Provider Cards Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {['gemini', 'openai', 'github', 'openrouter'].map((providerKey) => {
-                const meta = PROVIDER_METADATA[providerKey];
-                const savedConfig = configs.find(c => c.provider === providerKey) || {};
-                const form = editForms[providerKey] || {
-                  api_key: '',
-                  model: meta.defaultModel,
-                  base_url: meta.defaultBaseUrl,
-                  is_active: false
-                };
-                const isCurrentActive = savedConfig.is_active;
-                const testResult = testResults[providerKey];
-                const isTesting = testingProvider === providerKey;
-                const showKey = showKeyMap[providerKey];
-
-                return (
-                  <div
-                    key={providerKey}
-                    className={`rounded-xl border p-5 space-y-4 transition-all duration-200 ${
-                      isCurrentActive
-                        ? 'bg-slate-900/90 border-cyan-500/50 shadow-lg shadow-cyan-500/5 ring-1 ring-cyan-500/20'
-                        : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
-                    }`}
+            {/* Form Section */}
+            <div className="p-5 rounded-xl border border-slate-700 bg-slate-900/90 shadow-lg space-y-4">
+              <h3 className="font-semibold text-white text-sm">
+                {keyForm.id ? "Edit API Key" : "Add New API Key"}
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Provider Select */}
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-medium">Provider</label>
+                  <select
+                    value={keyForm.provider}
+                    onChange={(e) => {
+                      const p = e.target.value;
+                      const meta = PROVIDER_METADATA[p];
+                      setKeyForm(prev => ({
+                        ...prev,
+                        provider: p,
+                        model: meta.defaultModel,
+                        base_url: meta.defaultBaseUrl
+                      }));
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
                   >
-                    {/* Card Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-white text-sm">{meta.name}</h3>
-                          {isCurrentActive && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                              Active Engine
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400">{meta.badge} • {meta.docsHelp}</p>
-                      </div>
+                    {Object.keys(PROVIDER_METADATA).map(p => (
+                      <option key={p} value={p}>{PROVIDER_METADATA[p].name}</option>
+                    ))}
+                  </select>
+                </div>
 
-                      {!isCurrentActive && (
-                        <button
-                          onClick={() => handleSaveConfig(providerKey, true)}
-                          className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-standard"
-                        >
-                          Make Active
-                        </button>
-                      )}
-                    </div>
+                {/* Key Name */}
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-medium">Key Alias / Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. OpenAI Prod Key 1"
+                    value={keyForm.key_name}
+                    onChange={(e) => setKeyForm(prev => ({ ...prev, key_name: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
 
-                    {/* Inputs */}
-                    <div className="space-y-3 text-xs">
-                      {/* API Key */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-slate-300 font-medium">API Key / Secret Token</label>
-                          {savedConfig.has_key && (
-                            <span className="text-[10px] font-mono text-emerald-400">
-                              Configured: {savedConfig.masked_key}
-                            </span>
-                          )}
-                        </div>
-                        <div className="relative">
-                          <input
-                            type={showKey ? 'text' : 'password'}
-                            placeholder={savedConfig.has_key ? 'Enter new key to replace existing' : meta.placeholder}
-                            value={form.api_key || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setEditForms(prev => ({
-                                ...prev,
-                                [providerKey]: { ...prev[providerKey], api_key: val }
-                              }));
-                            }}
-                            className="w-full px-3 py-2 pr-10 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowKeyMap(prev => ({ ...prev, [providerKey]: !prev[providerKey] }))}
-                            className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
-                          >
-                            {showKey ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Model & Suggestions */}
-                      <div className="space-y-1">
-                        <label className="text-slate-300 font-medium">Target Model</label>
-                        <input
-                          type="text"
-                          value={form.model || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEditForms(prev => ({
-                              ...prev,
-                              [providerKey]: { ...prev[providerKey], model: val }
-                            }));
-                          }}
-                          className="w-full px-3 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 font-mono text-xs"
-                        />
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {meta.modelSuggestions.map(m => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => {
-                                setEditForms(prev => ({
-                                  ...prev,
-                                  [providerKey]: { ...prev[providerKey], model: m }
-                                }));
-                              }}
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono border transition-standard ${
-                                form.model === m
-                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-semibold'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                              }`}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Base URL (Collapsible/Editable) */}
-                      <div className="space-y-1">
-                        <label className="text-slate-400 text-[11px]">API Base URL Endpoint</label>
-                        <input
-                          type="text"
-                          value={form.base_url || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEditForms(prev => ({
-                              ...prev,
-                              [providerKey]: { ...prev[providerKey], base_url: val }
-                            }));
-                          }}
-                          className="w-full px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-300 focus:outline-none focus:border-cyan-400 font-mono text-[11px]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Test Results Display */}
-                    {testResult && (
-                      <div className={`p-3 rounded-lg border text-xs ${
-                        testResult.success
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                          : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                      }`}>
-                        <div className="flex items-center gap-1.5 font-medium">
-                          {testResult.success ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />}
-                          <span>{testResult.message || testResult.error}</span>
-                        </div>
-                        {testResult.response_sample && (
-                          <pre className="mt-1 text-[10px] text-slate-400 font-mono overflow-x-auto bg-slate-950/40 p-1.5 rounded">
-                            {testResult.response_sample}
-                          </pre>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
-                      <button
-                        type="button"
-                        onClick={() => handleTestConnection(providerKey)}
-                        disabled={isTesting}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs flex items-center gap-1.5 transition-standard disabled:opacity-50"
-                      >
-                        {isTesting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />}
-                        <span>Test Key</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleSaveConfig(providerKey, false)}
-                        className="px-4 py-1.5 rounded-lg bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold text-xs transition-standard hover-subtle"
-                      >
-                        Save Configuration
-                      </button>
-                    </div>
+                {/* API Key */}
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-slate-300 font-medium">API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showKey ? 'text' : 'password'}
+                      placeholder={keyForm.id ? 'Enter new key to replace existing (or leave blank to keep)' : PROVIDER_METADATA[keyForm.provider]?.placeholder}
+                      value={keyForm.api_key}
+                      onChange={(e) => setKeyForm(prev => ({ ...prev, api_key: e.target.value }))}
+                      className="w-full px-3 py-2 pr-10 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                    >
+                      {showKey ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                    </button>
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Model */}
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-medium">Model</label>
+                  <input
+                    type="text"
+                    value={keyForm.model}
+                    onChange={(e) => setKeyForm(prev => ({ ...prev, model: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {PROVIDER_METADATA[keyForm.provider]?.modelSuggestions.map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setKeyForm(prev => ({ ...prev, model: m }))}
+                        className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                      >
+                        {m}
+                    </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Base URL */}
+                <div className="space-y-1">
+                  <label className="text-slate-300 font-medium">Base URL</label>
+                  <input
+                    type="text"
+                    value={keyForm.base_url}
+                    onChange={(e) => setKeyForm(prev => ({ ...prev, base_url: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={keyForm.is_active}
+                    onChange={(e) => setKeyForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="form-checkbox bg-slate-800 border-slate-700 text-cyan-500 rounded"
+                  />
+                  <span className="text-slate-300 font-medium">Enable this Key (Make Active)</span>
+                </label>
+                
+                <div className="flex gap-2">
+                  {keyForm.id && (
+                    <button
+                      onClick={() => setKeyForm({
+                        id: null, provider: 'openai', key_name: '', api_key: '', model: 'gpt-4o-mini', base_url: 'https://api.openai.com/v1', is_active: false
+                      })}
+                      className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-standard"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={handleSaveKeyForm}
+                    className="px-4 py-2 rounded-lg bg-brand-primary hover:bg-brand-accent text-slate-900 font-semibold transition-standard shadow-lg shadow-brand-primary/20"
+                  >
+                    {keyForm.id ? "Update Key" : "Add Key"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* List of Configured Keys */}
+            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-800/70 text-slate-400 border-b border-slate-800 uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4 font-semibold">Provider / Name</th>
+                    <th className="py-3 px-4 font-semibold">API Key</th>
+                    <th className="py-3 px-4 font-semibold">Model</th>
+                    <th className="py-3 px-4 font-semibold">Status</th>
+                    <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {configs.length > 0 ? (
+                    configs.map((c) => {
+                      const testResult = testResults[c.id];
+                      return (
+                      <tr key={c.id} className="hover:bg-slate-800/30 transition-standard">
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-white flex items-center gap-1.5">
+                            {PROVIDER_METADATA[c.provider]?.name || c.provider}
+                            {c.is_active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>}
+                          </div>
+                          <div className="text-[11px] text-slate-400">{c.key_name}</div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
+                          {c.has_key ? c.masked_key : <span className="text-rose-400">No Key</span>}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px]">
+                          {c.model}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col gap-1">
+                            {c.is_active ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 self-start">
+                                Active Rotation
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 self-start">
+                                Inactive
+                              </span>
+                            )}
+                            {testResult && (
+                              <span className={`text-[10px] flex items-center gap-1 ${testResult.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {testResult.success ? <CheckCircleIcon className="w-3 h-3" /> : <ExclamationTriangleIcon className="w-3 h-3" />}
+                                {testResult.success ? 'Working' : 'Error'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleTestConnection(c)}
+                              disabled={testingProvider === c.id}
+                              className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-standard"
+                              title="Test Connection"
+                            >
+                              {testingProvider === c.id ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => handleEditConfig(c)}
+                              className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 transition-standard"
+                              title="Edit Key"
+                            >
+                              Edit
+                            </button>
+                            {!c.is_active && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await axios.post(`${apiUrl}/admin/ai-configs?admin_key=${encodeURIComponent(adminKey)}`, {
+                                      id: c.id,
+                                      provider: c.provider,
+                                      api_key: "••", // Leave untouched
+                                      is_active: true
+                                    });
+                                    fetchAdminData();
+                                  } catch(e) {}
+                                }}
+                                className="p-1.5 rounded bg-slate-800 hover:bg-emerald-900/30 text-emerald-400 transition-standard"
+                                title="Make Active"
+                              >
+                                Activate
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteConfig(c.id)}
+                              className="p-1.5 rounded bg-slate-800 hover:bg-rose-900/30 text-rose-400 transition-standard"
+                              title="Delete Key"
+                            >
+                              <XMarkIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )})
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                        No AI keys configured yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

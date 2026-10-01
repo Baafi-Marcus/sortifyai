@@ -141,12 +141,14 @@ class AIConfig(Base):
     __tablename__ = "ai_configs"
     
     id = Column(Integer, primary_key=True, index=True)
-    provider = Column(String, unique=True, index=True, nullable=False)  # 'gemini', 'openai', 'github', 'openrouter'
+    provider = Column(String, index=True, nullable=False)  # 'gemini', 'openai', 'github', 'openrouter'
+    key_name = Column(String, default="Default Key")
     display_name = Column(String, nullable=False)
     api_key = Column(String, nullable=True)
     model = Column(String, nullable=True)
     base_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=False)
+    is_working = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 

@@ -146,7 +146,7 @@ const ResultsStudio = ({
   const avgGroupSize = currentGroups.length > 0 ? (totalAssigned / currentGroups.length).toFixed(1) : 0;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-28 animate-fadeIn">
+    <div className="max-w-7xl mx-auto space-y-6 pb-48 animate-fadeIn">
       {/* Top Banner & Action Controls */}
       <div className="relative overflow-hidden p-6 rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl">
         {/* Decorative background glow */}
@@ -363,33 +363,36 @@ const ResultsStudio = ({
       </div>
 
       {/* Follow-Up Re-optimization Bar */}
-      <div className="fixed bottom-4 left-0 right-0 z-40 px-4 pointer-events-none">
-        <div className="max-w-3xl mx-auto rounded-md bg-slate-900/95 border border-slate-700 p-3.5 shadow-xl pointer-events-auto space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-              <AdjustmentsHorizontalIcon className="w-4 h-4 text-brand-primary" />
+      <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
+        <div className="max-w-4xl mx-auto rounded-2xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] pointer-events-auto space-y-3 relative overflow-hidden">
+          {/* Subtle glow */}
+          <div className="absolute top-0 left-1/2 w-64 h-32 bg-cyan-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+          
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-sm font-bold text-white flex items-center gap-2">
+              <AdjustmentsHorizontalIcon className="w-5 h-5 text-cyan-400" />
               <span>Refine or Re-optimize Group Distribution</span>
             </span>
-            <span className="text-[11px] text-slate-400">Constraint Adjustment</span>
+            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50">Constraint Adjustment</span>
           </div>
 
-          <form onSubmit={handleRefineSubmit} className="flex gap-2">
+          <form onSubmit={handleRefineSubmit} className="flex gap-3 relative z-10">
             <input
               type="text"
               value={refinePrompt}
               onChange={(e) => setRefinePrompt(e.target.value)}
               placeholder="e.g. 'Make gender more balanced' or 'Move 5 Science students from Group 1 to Group 3'..."
-              className="flex-1 rounded bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-primary"
+              className="flex-1 rounded-xl bg-slate-950/80 border border-slate-700/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all shadow-inner"
             />
             <button
               type="submit"
               disabled={!refinePrompt.trim() || refining}
-              className="px-4 py-2 bg-brand-primary hover:bg-brand-accent text-slate-900 rounded font-semibold text-xs transition-standard hover-subtle shrink-0 disabled:opacity-50 flex items-center gap-1.5"
+              className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] disabled:opacity-50 disabled:shadow-none flex items-center gap-2"
             >
               {refining ? (
                 <>
-                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-slate-900" />
-                  <span>Re-optimizing...</span>
+                  <ArrowPathIcon className="w-4 h-4 animate-spin text-slate-900" />
+                  <span>Optimizing...</span>
                 </>
               ) : (
                 <span>Re-optimize</span>
@@ -398,7 +401,7 @@ const ResultsStudio = ({
           </form>
 
           {/* Quick preset chips */}
-          <div className="flex flex-wrap gap-1 text-[11px]">
+          <div className="flex flex-wrap gap-2 text-[11px] relative z-10 pt-1">
             {[
               "Balance gender ratio 50/50",
               "Equalize academic exam score averages",
@@ -408,7 +411,7 @@ const ResultsStudio = ({
                 key={idx}
                 type="button"
                 onClick={() => setRefinePrompt(preset)}
-                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-standard"
+                className="px-3 py-1 rounded-full bg-slate-800/60 hover:bg-slate-700 border border-slate-700/50 text-slate-300 hover:text-white hover:border-cyan-500/30 transition-all duration-200"
               >
                 + {preset}
               </button>

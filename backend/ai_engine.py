@@ -24,7 +24,7 @@ def safe_exec_pandas(df: pd.DataFrame, code: str) -> pd.DataFrame:
             "str": str, "list": list, "dict": dict, "set": set, "tuple": tuple,
             "abs": abs, "min": min, "max": max, "sum": sum, "round": round,
             "bool": bool, "enumerate": enumerate, "zip": zip, "sorted": sorted,
-            "any": any, "all": all, "map": map, "filter": filter
+            "any": any, "all": all, "map": map, "filter": filter, "next": next
         },
         "pd": pd,
         "df": df

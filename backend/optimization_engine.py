@@ -78,24 +78,66 @@ class OptimizationEngine:
 
         # Initialize group containers
         allocated_groups = [{"id": i + 1, "name": f"Group {i + 1}", "items": []} for i in range(num_groups)]
+        affinity_biases = constraints.get("affinity_biases", {})
         
-        # Snake distribution: forward, backward, forward... ensures equal sum of scores
-        direction = 1
-        curr_group_idx = 0
-        
-        for item in clean_records:
-            allocated_groups[curr_group_idx]["items"].append(item)
+        if affinity_biases:
+            # Chunked Greedy Assignment for Affinity Matching
+            # Ensures perfect group sizes and overall score balance while respecting affinities
+            for chunk_start in range(0, len(clean_records), num_groups):
+                chunk = clean_records[chunk_start : chunk_start + num_groups]
+                available_groups = list(range(num_groups))
+                
+                while chunk and available_groups:
+                    best_match = None
+                    best_score = -float('inf')
+                    
+                    for item_idx, item in enumerate(chunk):
+                        for g_idx in available_groups:
+                            score = 0
+                            # Check for affinity for this specific group index
+                            affinity = affinity_biases.get(str(g_idx)) or affinity_biases.get(g_idx)
+                            if affinity:
+                                col = affinity.get("column")
+                                val = item.get(col, item.get(f"_{col}_val", 0))
+                                try:
+                                    num_val = float(str(val).replace(',', '').replace('$', '').strip())
+                                except (ValueError, TypeError):
+                                    num_val = 0.0
+                                    
+                                if affinity.get("direction") == "highest":
+                                    score = num_val
+                                elif affinity.get("direction") == "lowest":
+                                    score = -num_val
+                            
+                            if score > best_score:
+                                best_score = score
+                                best_match = (item_idx, g_idx)
+                                
+                    # Fallback if no affinities or zero scores
+                    if best_match is None or best_score == 0 or best_score == -float('inf'):
+                        best_match = (0, available_groups[0])
+                        
+                    sel_item_idx, sel_g_idx = best_match
+                    allocated_groups[sel_g_idx]["items"].append(chunk.pop(sel_item_idx))
+                    available_groups.remove(sel_g_idx)
+        else:
+            # Standard Snake Distribution
+            direction = 1
+            curr_group_idx = 0
             
-            if direction == 1:
-                if curr_group_idx == num_groups - 1:
-                    direction = -1
+            for item in clean_records:
+                allocated_groups[curr_group_idx]["items"].append(item)
+                
+                if direction == 1:
+                    if curr_group_idx == num_groups - 1:
+                        direction = -1
+                    else:
+                        curr_group_idx += 1
                 else:
-                    curr_group_idx += 1
-            else:
-                if curr_group_idx == 0:
-                    direction = 1
-                else:
-                    curr_group_idx -= 1
+                    if curr_group_idx == 0:
+                        direction = 1
+                    else:
+                        curr_group_idx -= 1
 
         # 5. Clean internal calculation keys and compute analytics for each group
         final_groups = []

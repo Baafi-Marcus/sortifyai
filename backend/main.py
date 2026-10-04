@@ -458,7 +458,8 @@ async def group_data(
                 balance_columns = opt.get("balance_columns", [])
                 records = data.fillna("").to_dict('records')
                 
-                res = engine.allocate_balanced_groups(records, num_groups=num_groups, balance_columns=balance_columns)
+                affinity_biases = opt.get("affinity_biases", {})
+                res = engine.allocate_balanced_groups(records, num_groups=num_groups, balance_columns=balance_columns, constraints={"affinity_biases": affinity_biases})
                 groups_with_data = res.get("groups", [])
                 
                 custom_names = opt.get("group_names", [])
@@ -810,7 +811,8 @@ async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
                 balance_columns = opt.get("balance_columns", [])
                 records = data.fillna("").to_dict('records')
                 
-                res = engine.allocate_balanced_groups(records, num_groups=num_groups, balance_columns=balance_columns)
+                affinity_biases = opt.get("affinity_biases", {})
+                res = engine.allocate_balanced_groups(records, num_groups=num_groups, balance_columns=balance_columns, constraints={"affinity_biases": affinity_biases})
                 groups_with_data = res.get("groups", [])
                 
                 custom_names = opt.get("group_names", [])

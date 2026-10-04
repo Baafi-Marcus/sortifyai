@@ -330,7 +330,11 @@ Formatting Guidelines:
                 "num_groups": 5,
                 "balance_columns": ["Overall Score"],
                 "group_names": ["Class A", "Class B"],
-                "group_descriptions": ["Subjects: English, Math...", "Subjects: ..."]
+                "group_descriptions": ["Subjects: English, Math...", "Subjects: ..."],
+                "affinity_biases": {
+                    "0": {"column": "Mathematics", "direction": "highest"},
+                    "1": {"column": "English", "direction": "highest"}
+                }
             },
             "groups": [
                 {
@@ -346,7 +350,8 @@ Formatting Guidelines:
         RULES:
         - `pandas_code`: MUST be valid python for a pandas DataFrame `df`. Can be multiline or empty string. DO NOT use import.
         - `optimization`: Set `use_optimization: true` if the user wants strictly equal group sizes balanced by a single numeric metric.
-        - `Assigned_Group` Backdoor: If the user requests highly complex logic (like balancing multiple metrics with custom affinity biases or dynamic sizes) that cannot be solved by simple rules or standard optimization, write custom Python code in `pandas_code` that directly creates a new column `df['Assigned_Group']` containing the assigned group name for every row. Set `use_optimization: false`.
+        - `affinity_biases`: Use this inside `optimization` if the user wants to prioritize specific subsets (like highest Math) into specific groups (e.g. Group 0), while still perfectly balancing overall scores and exact group sizes. Keys are string indices of the group (e.g. "0", "1").
+        - `Assigned_Group` Backdoor: If the user requests highly complex logic that cannot be solved by `optimization` and `affinity_biases`, write custom Python code in `pandas_code` that directly creates a new column `df['Assigned_Group']` containing the assigned group name for every row. Set `use_optimization: false`.
         - `groups`: Fallback. Only required if `use_optimization` is false and no `Assigned_Group` is made.
         - Operators for groups: ">=", ">", "<=", "<", "==", "!="
         """

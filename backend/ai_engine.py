@@ -21,9 +21,10 @@ def safe_exec_pandas(df: pd.DataFrame, code: str) -> pd.DataFrame:
     restricted_globals = {
         "__builtins__": {
             "range": range, "len": len, "float": float, "int": int,
-            "str": str, "list": list, "dict": dict, "set": set,
+            "str": str, "list": list, "dict": dict, "set": set, "tuple": tuple,
             "abs": abs, "min": min, "max": max, "sum": sum, "round": round,
-            "bool": bool
+            "bool": bool, "enumerate": enumerate, "zip": zip, "sorted": sorted,
+            "any": any, "all": all, "map": map, "filter": filter
         },
         "pd": pd,
         "df": df
@@ -35,7 +36,12 @@ def safe_exec_pandas(df: pd.DataFrame, code: str) -> pd.DataFrame:
             raise ValueError(f"Dangerous operation detected: {word}")
 
     try:
-        exec(code, restricted_globals, {})
+        locals_dict = {}
+        exec(code, restricted_globals, locals_dict)
+        if 'df' in locals_dict:
+            return locals_dict['df']
+        elif 'df' in restricted_globals:
+            return restricted_globals['df']
     except Exception as e:
         print(f"Failed to execute pandas code: {e}")
         pass

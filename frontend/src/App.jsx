@@ -66,6 +66,21 @@ const App = () => {
     }
   }, []);
 
+  // Restore active file session on refresh
+  useEffect(() => {
+    const savedFileStr = localStorage.getItem('sortifyai_active_file');
+    if (savedFileStr && window.location.hash !== '#admin') {
+      try {
+        const savedFile = JSON.parse(savedFileStr);
+        if (savedFile && savedFile.file_id) {
+          handleSelectFileFromSidebar(savedFile);
+        }
+      } catch (err) {
+        console.warn("Failed to parse saved active file", err);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const pingBackend = async () => {
@@ -116,6 +131,7 @@ const App = () => {
 
   // Handler: When user clicks a chat/file from Sidebar
   const handleSelectFileFromSidebar = async (fileSummary) => {
+    localStorage.setItem('sortifyai_active_file', JSON.stringify(fileSummary));
     try {
       const res = await axios.get(`${apiUrl}/files/${fileSummary.file_id}/preview`);
       if (res.data) {
@@ -170,7 +186,7 @@ const App = () => {
     setFileData(null);
     setGroups([]);
     setDecisionSummary(null);
-
+    localStorage.removeItem('sortifyai_active_file');
     setCurrentView('upload');
   };
 
@@ -180,6 +196,7 @@ const App = () => {
     setGroups([]);
     setDecisionSummary(null);
     setSidebarRefresh((prev) => prev + 1);
+    localStorage.setItem('sortifyai_active_file', JSON.stringify({ file_id: data.file_id, filename: data.filename, total_rows: data.total_rows }));
     setCurrentView('chat');
   };
 

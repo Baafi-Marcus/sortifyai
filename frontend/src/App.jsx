@@ -168,7 +168,7 @@ const App = () => {
     setFileData(null);
     setGroups([]);
     setDecisionSummary(null);
-    setCurrentPrompt("");
+
     setCurrentView('upload');
   };
 
@@ -185,7 +185,7 @@ const App = () => {
   const handleGroupsUpdated = (newGroups, promptText, title) => {
     setGroups(newGroups);
     if (title) setReportTitle(title);
-    if (promptText) setCurrentPrompt(promptText);
+
     setDecisionSummary({
       primary: "Chat AI Instruction",
       secondary: `${newGroups.length} Balanced Cohorts`,

@@ -278,6 +278,7 @@ Formatting Guidelines:
         
         JSON STRUCTURE:
         {
+            "report_title": "A highly descriptive, context-aware title for the final exported spreadsheet based on what the user wants",
             "groups": [
                 {
                     "name": "Group Name",

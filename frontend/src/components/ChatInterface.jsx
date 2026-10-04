@@ -138,7 +138,7 @@ const ChatInterface = ({
 
         // If groups were created, sync with parent application
         if (data.is_grouping && data.groups && onGroupsUpdated) {
-          onGroupsUpdated(data.groups, trimmed);
+          onGroupsUpdated(data.groups, trimmed, data.report_title);
         }
       } else {
         setMessages((prev) => [

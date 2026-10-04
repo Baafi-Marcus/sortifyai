@@ -491,6 +491,7 @@ async def group_data(
         }
         
         return {
+            "report_title": rules.get("report_title", "SortifyAI Groups"),
             "groups": groups_with_data,
             "explanation": rules.get("explanation", ""),
             "decision_summary": decision_summary,
@@ -782,6 +783,7 @@ async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
             "status": "success",
             "is_grouping": True,
             "reply": rules.get("explanation", "I have organized your data into balanced groups according to your instructions."),
+            "report_title": rules.get("report_title", "SortifyAI Groups"),
             "groups": groups_with_data,
             "total_rows": db_file.total_rows,
             "grouped_rows": grouped_count
@@ -841,6 +843,7 @@ async def get_groupings(file_id: str, db: Session = Depends(get_db)):
         "groupings": [
             {
                 "id": g.id,
+                "report_title": json.loads(g.rules_json).get("report_title", "SortifyAI Groups") if g.rules_json else "SortifyAI Groups",
                 "groups": json.loads(g.groups_json),
                 "total_rows": g.total_rows,
                 "grouped_rows": g.grouped_rows,

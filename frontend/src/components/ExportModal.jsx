@@ -6,7 +6,7 @@ import {
   TableCellsIcon
 } from '@heroicons/react/24/outline';
 
-const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Groups" }) => {
+const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Groups", reportTitle }) => {
   if (!isOpen) return null;
 
   // Export all groups combined into 1 CSV with "Group Name" column
@@ -19,7 +19,11 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
     const baseHeaders = Object.keys(sampleItem);
     const headers = ["Group Name", ...baseHeaders];
 
-    let csvContent = headers.join(',') + '\n';
+    let csvContent = "";
+    if (reportTitle) {
+      csvContent += `"${reportTitle.replace(/"/g, '""')}"\n\n`;
+    }
+    csvContent += headers.join(',') + '\n';
 
     groups.forEach(group => {
       (group.items || []).forEach(item => {
@@ -54,7 +58,11 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
       if (items.length === 0) return;
 
       const headers = Object.keys(items[0]);
-      let csvContent = headers.join(',') + '\n';
+      let csvContent = "";
+      if (reportTitle) {
+        csvContent += `"${reportTitle.replace(/"/g, '""')} - ${group.name}"\n\n`;
+      }
+      csvContent += headers.join(',') + '\n';
 
       items.forEach(item => {
         const row = headers.map(h => {

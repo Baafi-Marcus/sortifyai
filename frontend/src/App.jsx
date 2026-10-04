@@ -31,6 +31,7 @@ const App = () => {
   // Active File & Grouping State
   const [fileData, setFileData] = useState(null);
   const [groups, setGroups] = useState([]);
+  const [reportTitle, setReportTitle] = useState('SortifyAI Groups');
   const [decisionSummary, setDecisionSummary] = useState(null);
 
   // Modals
@@ -181,8 +182,9 @@ const App = () => {
   };
 
   // Handler: Groups updated during chat
-  const handleGroupsUpdated = (newGroups, promptText) => {
+  const handleGroupsUpdated = (newGroups, promptText, title) => {
     setGroups(newGroups);
+    if (title) setReportTitle(title);
     if (promptText) setCurrentPrompt(promptText);
     setDecisionSummary({
       primary: "Chat AI Instruction",
@@ -201,6 +203,7 @@ const App = () => {
       });
       if (res.data?.groups) {
         setGroups(res.data.groups);
+        if (res.data.report_title) setReportTitle(res.data.report_title);
       }
     } catch (err) {
       console.error("Refine with AI failed:", err);
@@ -472,6 +475,7 @@ const App = () => {
         onClose={() => setShowExportModal(false)}
         groups={groups}
         filename={fileData?.filename ? fileData.filename.split('.')[0] : "SortifyAI_Cohorts"}
+        reportTitle={reportTitle}
       />
 
       {/* Feedback Modal */}

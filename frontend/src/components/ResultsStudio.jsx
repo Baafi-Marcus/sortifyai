@@ -133,47 +133,59 @@ const ResultsStudio = ({
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-28 animate-fadeIn">
       {/* Top Banner & Action Controls */}
-      <div className="p-5 rounded-md bg-slate-900 border border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <h2 className="text-xl font-semibold text-white">{reportTitle || "Cohort Allocation Workspace"}</h2>
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-              Version {historyIndex + 1}
+      <div className="relative overflow-hidden p-6 rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl">
+        {/* Decorative background glow */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 border border-emerald-500/30">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            </div>
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300">
+                {reportTitle || "Cohort Allocation Workspace"}
+            </h2>
+            <span className="text-xs font-semibold tracking-wide px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 ml-2">
+              v{historyIndex + 1}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            <strong>{totalAssigned} records</strong> allocated across <strong>{currentGroups.length} cohorts</strong>
+          <p className="text-sm text-slate-400 mt-2 flex items-center gap-2 font-medium">
+            <span className="text-slate-300">{totalAssigned} records</span>
+            <span className="w-1 h-1 rounded-full bg-slate-600" />
+            <span className="text-slate-300">{currentGroups.length} cohorts</span>
+            <span className="w-1 h-1 rounded-full bg-slate-600" />
+            <span className="text-slate-300">~{avgGroupSize} / cohort</span>
           </p>
         </div>
 
         {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="relative z-10 flex flex-wrap items-center gap-3 w-full md:w-auto">
           <button
             onClick={handleUndo}
             disabled={historyIndex === 0}
-            className="px-3 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-standard disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg border border-slate-700/50 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-sm font-medium flex items-center gap-2 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
             title="Undo manual adjustments"
           >
-            <ArrowUturnLeftIcon className="w-3.5 h-3.5" />
+            <ArrowUturnLeftIcon className="w-4 h-4" />
             <span>Undo</span>
           </button>
 
           <button
             onClick={onPrintRoster}
-            className="px-3.5 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-standard hover-subtle"
+            className="px-4 py-2 rounded-lg border border-slate-700/50 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-sm font-medium flex items-center gap-2 transition-all duration-200 hover:shadow-[0_0_12px_rgba(34,211,238,0.2)]"
           >
-            <PrinterIcon className="w-3.5 h-3.5 text-cyan-400" />
+            <PrinterIcon className="w-4 h-4 text-cyan-400" />
             <span>Print Rosters</span>
           </button>
 
           {onSaveToCloud && (
             <button
               onClick={() => onSaveToCloud(currentGroups)}
-              className="px-3.5 py-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-medium flex items-center gap-1.5 transition-standard hover-subtle"
+              className="px-4 py-2 rounded-lg border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 hover:from-cyan-500/20 hover:to-indigo-500/20 text-cyan-300 hover:text-cyan-200 text-sm font-semibold flex items-center gap-2 transition-all duration-300 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]"
               title="Save project to your Neon PostgreSQL cloud"
             >
-              <CloudArrowUpIcon className="w-3.5 h-3.5" />
+              <CloudArrowUpIcon className="w-4 h-4" />
               <span>Save to Cloud</span>
             </button>
           )}
@@ -190,34 +202,33 @@ const ResultsStudio = ({
 
       {/* Decision Summary Pill */}
       {decisionSummary && (
-        <div className="px-4 py-2.5 rounded-md bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-slate-400">
-            <CheckBadgeIcon className="w-4 h-4 text-brand-primary" />
-            <strong className="text-white uppercase tracking-wider text-[11px]">Applied Rules:</strong>
+        <div className="relative overflow-hidden p-4 rounded-xl bg-slate-900/60 backdrop-blur-sm border border-slate-700/50 flex flex-wrap items-center justify-between gap-4 text-sm shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-2 text-slate-400 relative z-10">
+            <CheckBadgeIcon className="w-5 h-5 text-cyan-400" />
+            <strong className="text-white uppercase tracking-wider text-xs">Applied Rules:</strong>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-slate-300">
-            <span>Primary: <strong className="text-cyan-400">{decisionSummary.primary}</strong></span>
-            <span className="text-slate-600">•</span>
-            <span>Secondary: <strong className="text-cyan-400">{decisionSummary.secondary}</strong></span>
-            <span className="text-slate-600">•</span>
-            <span>Balance: <strong className="text-emerald-400">{decisionSummary.balance}</strong></span>
-            <span className="text-slate-600">•</span>
-            <span>Cohorts: <strong className="text-white">{currentGroups.length}</strong></span>
+          <div className="flex flex-wrap items-center gap-4 text-slate-300 relative z-10">
+            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Primary: <strong className="text-cyan-400 font-semibold">{decisionSummary.primary}</strong></span>
+            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Secondary: <strong className="text-indigo-400 font-semibold">{decisionSummary.secondary}</strong></span>
+            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Balance: <strong className="text-emerald-400 font-semibold">{decisionSummary.balance}</strong></span>
+            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Cohorts: <strong className="text-white font-semibold">{currentGroups.length}</strong></span>
           </div>
         </div>
       )}
 
       {/* Metric Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Total Assigned", value: totalAssigned, color: "text-white" },
-          { label: "Cohorts Created", value: currentGroups.length, color: "text-cyan-400" },
-          { label: "Average / Cohort", value: avgGroupSize, color: "text-emerald-400" },
-          { label: "Unassigned", value: 0, color: "text-slate-400" }
+          { label: "Total Assigned", value: totalAssigned, color: "text-white", glow: "from-white/10 to-transparent" },
+          { label: "Cohorts Created", value: currentGroups.length, color: "text-cyan-400", glow: "from-cyan-500/10 to-transparent" },
+          { label: "Average / Cohort", value: avgGroupSize, color: "text-emerald-400", glow: "from-emerald-500/10 to-transparent" },
+          { label: "Unassigned", value: 0, color: "text-slate-400", glow: "from-slate-500/10 to-transparent" }
         ].map((card, idx) => (
-          <div key={idx} className="p-4 rounded-md bg-slate-900 border border-slate-800 space-y-0.5">
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">{card.label}</span>
-            <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
+          <div key={idx} className="relative overflow-hidden p-5 rounded-xl bg-slate-900/60 backdrop-blur-sm border border-slate-700/50 space-y-1 transition-all duration-300 hover:translate-y-[-2px] hover:shadow-lg group">
+            <div className={`absolute top-0 left-0 right-0 h-full bg-gradient-to-b ${card.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
+            <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold relative z-10">{card.label}</span>
+            <p className={`text-2xl font-bold ${card.color} relative z-10`}>{card.value}</p>
           </div>
         ))}
       </div>
@@ -231,18 +242,18 @@ const ResultsStudio = ({
       )}
 
       {/* Groups Display Grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <UserGroupIcon className="w-4 h-4 text-brand-primary" />
-            <span>Cohort Rosters & Distribution Analytics</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <UserGroupIcon className="w-5 h-5 text-cyan-400" />
+            <span className="tracking-wide">Cohort Rosters & Analytics</span>
           </h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs font-medium text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
             Use the "Move" selector to adjust records manually.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {currentGroups.map((group, gIdx) => {
             const items = group.items || [];
             const analytics = getGroupAnalytics(items);
@@ -251,24 +262,25 @@ const ResultsStudio = ({
             return (
               <div 
                 key={gIdx} 
-                className="rounded-md bg-slate-900 border border-slate-800 overflow-hidden flex flex-col hover:border-slate-700 transition-standard"
+                className="relative flex flex-col rounded-xl bg-slate-900/60 backdrop-blur-sm border border-slate-700/50 overflow-hidden shadow-md transition-all duration-300 hover:shadow-xl hover:border-slate-600 group"
               >
                 {/* Header */}
-                <div className="p-4 border-b border-slate-800 bg-slate-800/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded bg-slate-800 border border-slate-700 text-cyan-400 flex items-center justify-center font-mono font-bold text-xs">
+                <div className="p-5 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/80 to-slate-900/40 flex items-center justify-between relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="flex items-center gap-4 relative z-10">
+                    <span className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-mono font-bold text-sm shadow-sm">
                       {gIdx + 1}
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-white">{group.name}</h4>
-                      <p className="text-[11px] text-slate-400">{analytics.count} students</p>
+                      <h4 className="text-base font-bold text-white tracking-wide">{group.name}</h4>
+                      <p className="text-xs font-medium text-slate-400 mt-0.5">{analytics.count} assigned students</p>
                     </div>
                   </div>
 
                   {analytics.avgScore && (
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-400 uppercase">Avg Score</span>
-                      <p className="text-xs font-semibold text-cyan-400">{analytics.avgScore}</p>
+                    <div className="text-right relative z-10 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-0.5">Avg Score</span>
+                      <p className="text-sm font-bold text-emerald-400">{analytics.avgScore}</p>
                     </div>
                   )}
                 </div>

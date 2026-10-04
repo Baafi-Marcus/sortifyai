@@ -838,13 +838,21 @@ async def get_groupings(file_id: str, db: Session = Depends(get_db)):
     if not db_file:
         raise HTTPException(status_code=404, detail="File not found")
 
+    def safe_get_title(json_str):
+        if not json_str: return "SortifyAI Groups"
+        try:
+            data = json.loads(json_str)
+            if isinstance(data, dict): return data.get("report_title", "SortifyAI Groups")
+        except Exception: pass
+        return "SortifyAI Groups"
+
     groupings = db.query(Grouping).filter(Grouping.file_id == file_id).order_by(Grouping.created_at.desc()).all()
     return {
         "groupings": [
             {
                 "id": g.id,
-                "report_title": json.loads(g.rules_json).get("report_title", "SortifyAI Groups") if g.rules_json else "SortifyAI Groups",
-                "groups": json.loads(g.groups_json),
+                "report_title": safe_get_title(g.rules_json),
+                "groups": json.loads(g.groups_json) if g.groups_json else [],
                 "total_rows": g.total_rows,
                 "grouped_rows": g.grouped_rows,
                 "created_at": g.created_at.isoformat()

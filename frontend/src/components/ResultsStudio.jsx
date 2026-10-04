@@ -309,6 +309,9 @@ const ResultsStudio = ({
                     </span>
                     <div>
                       <h4 className="text-base font-bold text-white tracking-wide">{group.name}</h4>
+                      {group.description && (
+                        <p className="text-[11px] font-medium text-cyan-300 mt-1 leading-tight">{group.description}</p>
+                      )}
                       <p className="text-xs font-medium text-slate-400 mt-0.5">{analytics.count} assigned students</p>
                     </div>
                   </div>

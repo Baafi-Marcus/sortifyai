@@ -323,7 +323,8 @@ Formatting Guidelines:
                 "use_optimization": true,
                 "num_groups": 5,
                 "balance_columns": ["Overall Score"],
-                "group_names": ["Class A", "Class B"] 
+                "group_names": ["Class A", "Class B"],
+                "group_descriptions": ["Subjects: English, Math...", "Subjects: ..."]
             },
             "groups": [
                 {

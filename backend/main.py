@@ -462,9 +462,13 @@ async def group_data(
                 groups_with_data = res.get("groups", [])
                 
                 custom_names = opt.get("group_names", [])
+                custom_descriptions = opt.get("group_descriptions", [])
+                
                 if custom_names and len(custom_names) == len(groups_with_data):
                     for i, g in enumerate(groups_with_data):
                         g["name"] = custom_names[i]
+                        if custom_descriptions and i < len(custom_descriptions):
+                            g["description"] = custom_descriptions[i]
             else:
                 groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
         else:

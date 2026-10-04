@@ -17,7 +17,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
     if (!sampleItem) return;
 
     const baseHeaders = Object.keys(sampleItem);
-    const headers = ["Group Name", ...baseHeaders];
+    const headers = ["Group Name", "Group Description", ...baseHeaders];
 
     let csvContent = "";
     if (reportTitle) {
@@ -29,6 +29,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
       (group.items || []).forEach(item => {
         const row = [
           `"${group.name.replace(/"/g, '""')}"`,
+          `"${(group.description || '').replace(/"/g, '""')}"`,
           ...baseHeaders.map(h => {
             const val = item[h];
             return typeof val === 'string' && (val.includes(',') || val.includes('"'))
@@ -60,9 +61,12 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Group
       const headers = Object.keys(items[0]);
       let csvContent = "";
       if (reportTitle) {
-        csvContent += `"${reportTitle.replace(/"/g, '""')} - ${group.name}"\n\n`;
+        csvContent += `"${reportTitle.replace(/"/g, '""')} - ${group.name}"\n`;
       }
-      csvContent += headers.join(',') + '\n';
+      if (group.description) {
+        csvContent += `"${group.description.replace(/"/g, '""')}"\n`;
+      }
+      csvContent += '\n' + headers.join(',') + '\n';
 
       items.forEach(item => {
         const row = headers.map(h => {

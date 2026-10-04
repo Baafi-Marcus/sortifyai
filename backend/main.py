@@ -470,7 +470,33 @@ async def group_data(
                         if custom_descriptions and i < len(custom_descriptions):
                             g["description"] = custom_descriptions[i]
             else:
-                groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
+                if "Assigned_Group" in data.columns:
+                    groups_with_data = []
+                    # Keep original order if group_names are specified in JSON
+                    ordered_names = [g.get("name") for g in rules.get("groups", [])] if rules.get("groups") else list(data["Assigned_Group"].dropna().unique())
+                    
+                    # Ensure we pick up all unique names even if not in JSON
+                    for unq in data["Assigned_Group"].dropna().unique():
+                        if unq not in ordered_names:
+                            ordered_names.append(unq)
+                            
+                    for group_name in ordered_names:
+                        group_items = data[data["Assigned_Group"] == group_name].fillna("").to_dict('records')
+                        if not group_items:
+                            continue
+                            
+                        desc = ""
+                        for g in rules.get("groups", []):
+                            if g.get("name") == group_name:
+                                desc = g.get("description", "")
+                                break
+                        groups_with_data.append({
+                            "name": str(group_name),
+                            "description": desc,
+                            "items": group_items
+                        })
+                else:
+                    groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
         else:
             groups_with_data = rules.get("groups", [])
         

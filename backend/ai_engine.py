@@ -339,8 +339,9 @@ Formatting Guidelines:
         
         RULES:
         - `pandas_code`: MUST be valid python for a pandas DataFrame `df`. Can be multiline or empty string. DO NOT use import.
-        - `optimization`: Set `use_optimization: true` if the user wants strictly equal group sizes balanced by a numeric metric.
-        - `groups`: Legacy fallback. Only required if `use_optimization` is false.
+        - `optimization`: Set `use_optimization: true` if the user wants strictly equal group sizes balanced by a single numeric metric.
+        - `Assigned_Group` Backdoor: If the user requests highly complex logic (like balancing multiple metrics with custom affinity biases or dynamic sizes) that cannot be solved by simple rules or standard optimization, write custom Python code in `pandas_code` that directly creates a new column `df['Assigned_Group']` containing the assigned group name for every row. Set `use_optimization: false`.
+        - `groups`: Fallback. Only required if `use_optimization` is false and no `Assigned_Group` is made.
         - Operators for groups: ">=", ">", "<=", "<", "==", "!="
         """
 

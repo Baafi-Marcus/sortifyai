@@ -212,6 +212,20 @@ const App = () => {
     }
   };
 
+  // Handler: Auto-save manual edits to the backend
+  const handleAutoSave = async (updatedGroups) => {
+    if (!fileData?.file_id) return;
+    try {
+      await axios.put(`${apiUrl}/groupings/${fileData.file_id}/latest`, {
+        groups: updatedGroups
+      });
+      // Also update local groups state so it stays in sync
+      setGroups(updatedGroups);
+    } catch (err) {
+      console.error("Auto-save manual edits failed:", err);
+    }
+  };
+
   // Handler: Save to Cloud
   const handleSaveToCloud = async (currentGroups) => {
     if (!currentUser || !authToken) {
@@ -358,6 +372,7 @@ const App = () => {
                     onOpenExport={() => setShowExportModal(true)}
                     onPrintRoster={() => window.print()}
                     onSaveToCloud={handleSaveToCloud}
+                    onAutoSave={handleAutoSave}
                     totalRows={fileData.total_rows || 120}
                   />
                 </div>

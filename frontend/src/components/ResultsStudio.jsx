@@ -19,6 +19,7 @@ const ResultsStudio = ({
   onOpenExport,
   onPrintRoster,
   onSaveToCloud,
+  onAutoSave,
   totalRows 
 }) => {
   const [history, setHistory] = useState([initialGroups]);
@@ -28,6 +29,21 @@ const ResultsStudio = ({
   const [feedbackNotice, setFeedbackNotice] = useState(null);
 
   const currentGroups = history[historyIndex] || initialGroups;
+
+  // Helper to format values for display (e.g. truncate long floats)
+  const formatCellValue = (val) => {
+    if (val === undefined || val === null || val === "") return "-";
+    if (typeof val === 'number') {
+      return Number.isInteger(val) ? val : parseFloat(val.toFixed(2));
+    }
+    if (typeof val === 'string' && !isNaN(val) && val.includes('.')) {
+      const parts = val.split('.');
+      if (parts[1] && parts[1].length > 2) {
+        return parseFloat(val).toFixed(2);
+      }
+    }
+    return String(val);
+  };
 
   // Compute analytics dynamically based on actual data
   const getGroupAnalytics = (items = []) => {
@@ -119,6 +135,8 @@ const ResultsStudio = ({
     const nextHistory = [...history.slice(0, historyIndex + 1), newGroups];
     setHistory(nextHistory);
     setHistoryIndex(nextHistory.length - 1);
+    
+    if (onAutoSave) onAutoSave(newGroups);
 
     setFeedbackNotice(`Moved student to ${newGroups[toGroupIdx].name}. Group balance updated.`);
     setTimeout(() => setFeedbackNotice(null), 3500);
@@ -127,7 +145,10 @@ const ResultsStudio = ({
   // Undo functionality
   const handleUndo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex(prev => prev - 1);
+      const nextIdx = historyIndex - 1;
+      setHistoryIndex(nextIdx);
+      if (onAutoSave) onAutoSave(history[nextIdx]);
+      
       setFeedbackNotice("Restored previous grouping version.");
       setTimeout(() => setFeedbackNotice(null), 3000);
     }
@@ -334,7 +355,7 @@ const ResultsStudio = ({
                         <tr key={sIdx} className="hover:bg-slate-850">
                           {columns.map((col, cIdx) => (
                             <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap text-slate-200">
-                              {student[col] !== undefined ? String(student[col]) : "-"}
+                              {formatCellValue(student[col])}
                             </td>
                           ))}
                           <td className="px-3 py-1.5 text-right whitespace-nowrap">

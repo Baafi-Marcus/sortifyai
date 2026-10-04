@@ -902,6 +902,20 @@ async def get_groupings(file_id: str, db: Session = Depends(get_db)):
         ]
     }
 
+class UpdateGroupingRequest(BaseModel):
+    groups: List[Dict[str, Any]]
+
+@app.put("/groupings/{file_id}/latest")
+async def update_latest_grouping(file_id: str, req: UpdateGroupingRequest, db: Session = Depends(get_db)):
+    """Update the most recent grouping for a file (for manual edits)"""
+    latest_grouping = db.query(Grouping).filter(Grouping.file_id == file_id).order_by(Grouping.created_at.desc()).first()
+    if not latest_grouping:
+        raise HTTPException(status_code=404, detail="No groupings found for this file")
+    
+    latest_grouping.groups_json = json.dumps(req.groups)
+    db.commit()
+    return {"status": "success", "message": "Grouping updated"}
+
 
 @app.post("/feedback")
 async def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):

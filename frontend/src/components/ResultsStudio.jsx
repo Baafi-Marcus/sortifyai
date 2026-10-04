@@ -245,9 +245,21 @@ const ResultsStudio = ({
             <strong className="text-white uppercase tracking-wider text-xs">Applied Rules:</strong>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-slate-300 relative z-10">
-            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Primary: <strong className="text-cyan-400 font-semibold">{decisionSummary.primary}</strong></span>
-            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Secondary: <strong className="text-indigo-400 font-semibold">{decisionSummary.secondary}</strong></span>
-            <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Balance: <strong className="text-emerald-400 font-semibold">{decisionSummary.balance}</strong></span>
+            {decisionSummary.primary && (
+              <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">
+                Primary: <strong className="text-cyan-400 font-semibold">{decisionSummary.primary}</strong>
+              </span>
+            )}
+            {decisionSummary.secondary && (
+              <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">
+                Secondary: <strong className="text-indigo-400 font-semibold">{decisionSummary.secondary}</strong>
+              </span>
+            )}
+            {decisionSummary.balance && (
+              <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">
+                Balance: <strong className="text-emerald-400 font-semibold">{decisionSummary.balance}</strong>
+              </span>
+            )}
             <span className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-md border border-slate-700/50">Cohorts: <strong className="text-white font-semibold">{currentGroups.length}</strong></span>
           </div>
         </div>

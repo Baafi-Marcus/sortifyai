@@ -168,16 +168,13 @@ const App = () => {
         }
       }
     } catch (err) {
-      console.warn("Could not load preview, using basic file metadata:", err);
-      setFileData({
-        file_id: fileSummary.file_id,
-        filename: fileSummary.filename,
-        total_rows: fileSummary.total_rows,
-        columns: [],
-        preview: [],
-        issues: []
-      });
-      setCurrentView('chat');
+      console.warn("Could not load file session:", err);
+      if (err.response && err.response.status === 404) {
+        alert("This file is no longer available on the server (it may have been cleared during a system update). Please re-upload your file.");
+      } else {
+        alert("There was a problem loading this file. Please try again or re-upload.");
+      }
+      handleNewChat();
     }
   };
 

@@ -15,6 +15,21 @@ import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, Width
 const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Placement_Results", reportTitle }) => {
   if (!isOpen) return null;
 
+  // Helper to format long decimals
+  const formatValue = (val) => {
+    if (typeof val === 'number' && !Number.isInteger(val)) {
+      return Number(val.toFixed(2));
+    }
+    if (typeof val === 'string' && !isNaN(parseFloat(val)) && val.includes('.')) {
+      const num = parseFloat(val);
+      // Check if it has more than 2 decimal places
+      if (val.split('.')[1]?.length > 2) {
+         return num.toFixed(2);
+      }
+    }
+    return val;
+  };
+
   // Export highly formatted multi-sheet Excel workbook
   const downloadExcelWorkbook = () => {
     if (!groups || groups.length === 0) return;
@@ -32,14 +47,26 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       return scoreB - scoreA; 
     });
     const baseHeaders = allItems.length > 0 ? Object.keys(allItems[0]).filter(k => !k.startsWith('_') && k !== 'Assigned_Class') : [];
+    
+    // Determine column widths for Excel
+    const colWidths = [{ wch: 8 }]; // Rank
+    baseHeaders.forEach(h => {
+      if (h === 'Student Name') colWidths.push({ wch: 30 });
+      else if (h.includes('Score') || h.includes('Percentage') || h.includes('Mark')) colWidths.push({ wch: 15 });
+      else colWidths.push({ wch: 20 });
+    });
+    colWidths.push({ wch: 25 }); // Assigned Class
+
     allItems.forEach((item, index) => {
       const row = { "Rank": index + 1 };
-      baseHeaders.forEach(h => { row[h] = item[h]; });
+      baseHeaders.forEach(h => { row[h] = formatValue(item[h]); });
       row["Assigned Class"] = item.Assigned_Class;
       masterData.push(row);
     });
     const wsMaster = XLSX.utils.json_to_sheet(masterData);
+    wsMaster['!cols'] = colWidths;
     XLSX.utils.book_append_sheet(wb, wsMaster, "Final Placement");
+
     const summaryData = [];
     groups.forEach(group => {
       const items = group.items || [];
@@ -59,15 +86,19 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       summaryData.push({
         "Class": group.name,
         "Students": numStudents,
-        "Avg English %": numStudents ? (grpEng / numStudents).toFixed(2) : 0,
-        "Avg Mathematics %": numStudents ? (grpMath / numStudents).toFixed(2) : 0,
-        "Avg Placement Score": numStudents ? (grpOverall / numStudents).toFixed(2) : 0,
-        "Highest Score": numStudents ? grpHighest.toFixed(2) : 0,
-        "Lowest Score": numStudents ? grpLowest.toFixed(2) : 0
+        "Avg English %": numStudents ? Number((grpEng / numStudents).toFixed(2)) : 0,
+        "Avg Mathematics %": numStudents ? Number((grpMath / numStudents).toFixed(2)) : 0,
+        "Avg Placement Score": numStudents ? Number((grpOverall / numStudents).toFixed(2)) : 0,
+        "Highest Score": numStudents ? Number(grpHighest.toFixed(2)) : 0,
+        "Lowest Score": numStudents ? Number(grpLowest.toFixed(2)) : 0
       });
     });
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    wsSummary['!cols'] = [
+      { wch: 25 }, { wch: 10 }, { wch: 15 }, { wch: 18 }, { wch: 20 }, { wch: 15 }, { wch: 15 }
+    ];
     XLSX.utils.book_append_sheet(wb, wsSummary, "Class Summary");
+
     groups.forEach(group => {
       const items = [...(group.items || [])];
       items.sort((a, b) => {
@@ -86,11 +117,20 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
           "Class Rank": index + 1,
           "Overall Rank": overallRank || "N/A"
         };
-        baseHeaders.forEach(h => { row[h] = item[h]; });
+        baseHeaders.forEach(h => { row[h] = formatValue(item[h]); });
         classData.push(row);
       });
       const safeSheetName = group.name.substring(0, 31).replace(/[\\/*?:\[\]]/g, '');
       const wsClass = XLSX.utils.json_to_sheet(classData, { skipHeader: false });
+      
+      const classColWidths = [{ wch: 12 }, { wch: 12 }];
+      baseHeaders.forEach(h => {
+        if (h === 'Student Name') classColWidths.push({ wch: 30 });
+        else if (h.includes('Score') || h.includes('Percentage') || h.includes('Mark')) classColWidths.push({ wch: 15 });
+        else classColWidths.push({ wch: 20 });
+      });
+      wsClass['!cols'] = classColWidths;
+
       XLSX.utils.book_append_sheet(wb, wsClass, safeSheetName);
     });
     XLSX.writeFile(wb, `${filename}.xlsx`);
@@ -114,7 +154,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
           `"${group.name.replace(/"/g, '""')}"`,
           `"${(group.description || '').replace(/"/g, '""')}"`,
           ...baseHeaders.map(h => {
-            const val = item[h];
+            const val = formatValue(item[h]);
             return typeof val === 'string' && (val.includes(',') || val.includes('"'))
               ? `"${val.replace(/"/g, '""')}"`
               : (val !== undefined && val !== null ? val : "");
@@ -149,7 +189,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       csvContent += '\n' + baseHeaders.join(',') + '\n';
       items.forEach(item => {
         const row = baseHeaders.map(h => {
-          const val = item[h];
+          const val = formatValue(item[h]);
           return typeof val === 'string' && (val.includes(',') || val.includes('"'))
             ? `"${val.replace(/"/g, '""')}"`
             : (val !== undefined && val !== null ? val : "");
@@ -185,13 +225,20 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       }
       
       const headers = Object.keys(items[0]).filter(k => !k.startsWith('_'));
-      const rows = items.map(item => headers.map(h => item[h] || ""));
+      const rows = items.map(item => headers.map(h => formatValue(item[h]) !== undefined ? String(formatValue(item[h])) : ""));
+
+      const columnStyles = {};
+      const nameIdx = headers.findIndex(h => h === 'Student Name');
+      if (nameIdx !== -1) {
+        columnStyles[nameIdx] = { cellWidth: 50 }; // Give Student Name column more space
+      }
 
       doc.autoTable({
         head: [headers],
         body: rows,
         startY: group.description ? 30 : 25,
         styles: { fontSize: 8 },
+        columnStyles: columnStyles,
         headStyles: { fillColor: [41, 128, 185] },
       });
 
@@ -231,7 +278,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       items.forEach(item => {
         tableRows.push(
           new TableRow({
-            children: headers.map(h => new TableCell({ children: [new Paragraph(String(item[h] || ""))] })),
+            children: headers.map(h => new TableCell({ children: [new Paragraph(String(formatValue(item[h]) !== undefined ? formatValue(item[h]) : ""))] })),
           })
         );
       });

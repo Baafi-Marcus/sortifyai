@@ -29,55 +29,70 @@ const ResultsStudio = ({
 
   const currentGroups = history[historyIndex] || initialGroups;
 
-  // Compute analytics dynamically
+  // Compute analytics dynamically based on actual data
   const getGroupAnalytics = (items = []) => {
     const count = items.length;
     if (count === 0) {
-      return { count: 0, avgScore: null, minScore: null, maxScore: null, males: 0, females: 0, progs: {} };
+      return { count: 0, avgScore: null, minScore: null, maxScore: null, dynamicCategories: [] };
     }
 
     let scoreSum = 0;
     let scoreCount = 0;
     let minScore = Infinity;
     let maxScore = -Infinity;
-    let males = 0;
-    let females = 0;
-    const progs = {};
+
+    // Track distributions for all non-numeric/non-ID columns
+    const distributions = {};
 
     items.forEach(it => {
       for (const [k, v] of Object.entries(it)) {
+        if (v === null || v === undefined || String(v).trim() === '') continue;
+        
         const kl = k.toLowerCase();
+        
+        // Check for scores
         if (['score', 'mark', 'grade', 'total', 'average'].some(w => kl.includes(w))) {
-          const num = parseFloat(String(v).replace(/[$,]/g, '').trim());
+          const num = parseFloat(String(v).replace(/[$,%]/g, '').trim());
           if (!isNaN(num)) {
             scoreSum += num;
             scoreCount++;
             if (num < minScore) minScore = num;
             if (num > maxScore) maxScore = num;
           }
-        }
-        if (['gender', 'sex'].some(w => kl.includes(w))) {
-          const s = String(v).trim().toLowerCase();
-          if (['m', 'male', 'boy'].includes(s)) males++;
-          else if (['f', 'female', 'girl'].includes(s)) females++;
-        }
-        if (['prog', 'programme', 'course', 'track', 'subject'].some(w => kl.includes(w))) {
-          const p = String(v).trim();
-          if (p && p !== 'null' && p !== 'undefined') {
-            progs[p] = (progs[p] || 0) + 1;
+        } else {
+          // Categorical tracking (ignore ID, name, email columns)
+          if (!['id', 'name', 'email', 'phone', 'contact'].some(w => kl.includes(w))) {
+            const valStr = String(v).trim();
+            if (!distributions[k]) distributions[k] = {};
+            distributions[k][valStr] = (distributions[k][valStr] || 0) + 1;
           }
         }
       }
     });
+
+    // Filter to top categorical columns that have between 2 and 8 unique values
+    const dynamicCategories = [];
+    for (const [colName, counts] of Object.entries(distributions)) {
+      const numKeys = Object.keys(counts).length;
+      if (numKeys >= 2 && numKeys <= 8) {
+        // Only keep top 4 values for display
+        const topValues = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([val, cnt]) => ({ val, cnt }));
+        dynamicCategories.push({ name: colName, values: topValues });
+      }
+    }
+    
+    // Sort so we get consistent categories
+    dynamicCategories.sort((a, b) => a.name.localeCompare(b.name));
 
     return {
       count,
       avgScore: scoreCount > 0 ? (scoreSum / scoreCount).toFixed(1) : null,
       minScore: scoreCount > 0 ? minScore : null,
       maxScore: scoreCount > 0 ? maxScore : null,
-      males,
-      females,
-      progs
+      dynamicCategories: dynamicCategories.slice(0, 2) // Max 2 for UI
     };
   };
 
@@ -286,27 +301,22 @@ const ResultsStudio = ({
                 </div>
 
                 {/* Inline Group Analytics Breakdown */}
-                <div className="p-3 bg-slate-950 border-b border-slate-800 grid grid-cols-2 gap-2 text-xs">
-                  <div className="space-y-0.5">
-                    <span className="text-slate-400 text-[11px] font-medium">Gender Balance:</span>
-                    <div className="flex items-center gap-2 text-slate-300 font-mono text-[11px]">
-                      <span>M: {analytics.males}</span>
-                      <span className="text-slate-600">|</span>
-                      <span>F: {analytics.females}</span>
-                    </div>
+                {analytics.dynamicCategories && analytics.dynamicCategories.length > 0 && (
+                  <div className="p-3 bg-slate-950/50 border-b border-slate-700/50 flex flex-wrap gap-x-6 gap-y-3 text-xs">
+                    {analytics.dynamicCategories.map((cat, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">{cat.name}:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {cat.values.map((v, vIdx) => (
+                            <span key={vIdx} className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/50 text-[10px] text-slate-300 font-medium shadow-sm">
+                              {v.val}: <strong className="text-cyan-400 ml-0.5">{v.cnt}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="space-y-0.5">
-                    <span className="text-slate-400 text-[11px] font-medium">Programmes:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.entries(analytics.progs).slice(0, 3).map(([prog, count]) => (
-                        <span key={prog} className="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-mono">
-                          {prog}: {count}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 {/* Student Table */}
                 <div className="flex-1 overflow-x-auto max-h-64">

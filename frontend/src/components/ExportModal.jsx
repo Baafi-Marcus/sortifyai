@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PrinterIcon, 
   DocumentTextIcon, 
   XMarkIcon,
   TableCellsIcon,
   DocumentArrowDownIcon,
-  DocumentIcon
+  DocumentIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -13,7 +14,41 @@ import 'jspdf-autotable';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, HeadingLevel } from 'docx';
 
 const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Placement_Results", reportTitle }) => {
+  const [availableColumns, setAvailableColumns] = useState([]);
+  const [selectedColumns, setSelectedColumns] = useState({});
+
+  useEffect(() => {
+    if (isOpen && groups.length > 0) {
+      const sampleItem = groups.find(g => g.items && g.items.length > 0)?.items[0] || {};
+      const baseHeaders = Object.keys(sampleItem).filter(k => !k.startsWith('_') && k !== 'Assigned_Class');
+      setAvailableColumns(baseHeaders);
+      
+      const initialSelection = {};
+      baseHeaders.forEach(h => initialSelection[h] = true);
+      setSelectedColumns(initialSelection);
+    }
+  }, [isOpen, groups]);
+
+  const toggleColumn = (col) => {
+    setSelectedColumns(prev => ({ ...prev, [col]: !prev[col] }));
+  };
+
+  const selectAll = () => {
+    const newSel = {};
+    availableColumns.forEach(h => newSel[h] = true);
+    setSelectedColumns(newSel);
+  };
+
+  const deselectAll = () => {
+    const newSel = {};
+    availableColumns.forEach(h => newSel[h] = false);
+    // Keep at least the first one selected ideally, but let's just allow empty
+    setSelectedColumns(newSel);
+  };
+
   if (!isOpen) return null;
+
+  const getActiveHeaders = () => availableColumns.filter(col => selectedColumns[col]);
 
   // Helper to format long decimals
   const formatValue = (val) => {
@@ -33,6 +68,9 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
   // Export highly formatted multi-sheet Excel workbook
   const downloadExcelWorkbook = () => {
     if (!groups || groups.length === 0) return;
+    const activeHeaders = getActiveHeaders();
+    if (activeHeaders.length === 0) return;
+
     const wb = XLSX.utils.book_new();
     let masterData = [];
     const allItems = [];
@@ -46,11 +84,10 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       const scoreB = parseFloat(b['Overall Placement Score'] || b['Overall Score'] || 0);
       return scoreB - scoreA; 
     });
-    const baseHeaders = allItems.length > 0 ? Object.keys(allItems[0]).filter(k => !k.startsWith('_') && k !== 'Assigned_Class') : [];
     
     // Determine column widths for Excel
     const colWidths = [{ wch: 8 }]; // Rank
-    baseHeaders.forEach(h => {
+    activeHeaders.forEach(h => {
       if (h === 'Student Name') colWidths.push({ wch: 30 });
       else if (h.includes('Score') || h.includes('Percentage') || h.includes('Mark')) colWidths.push({ wch: 15 });
       else colWidths.push({ wch: 20 });
@@ -59,7 +96,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
 
     allItems.forEach((item, index) => {
       const row = { "Rank": index + 1 };
-      baseHeaders.forEach(h => { row[h] = formatValue(item[h]); });
+      activeHeaders.forEach(h => { row[h] = formatValue(item[h]); });
       row["Assigned Class"] = item.Assigned_Class;
       masterData.push(row);
     });
@@ -117,14 +154,14 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
           "Class Rank": index + 1,
           "Overall Rank": overallRank || "N/A"
         };
-        baseHeaders.forEach(h => { row[h] = formatValue(item[h]); });
+        activeHeaders.forEach(h => { row[h] = formatValue(item[h]); });
         classData.push(row);
       });
       const safeSheetName = group.name.substring(0, 31).replace(/[\\/*?:\[\]]/g, '');
       const wsClass = XLSX.utils.json_to_sheet(classData, { skipHeader: false });
       
       const classColWidths = [{ wch: 12 }, { wch: 12 }];
-      baseHeaders.forEach(h => {
+      activeHeaders.forEach(h => {
         if (h === 'Student Name') classColWidths.push({ wch: 30 });
         else if (h.includes('Score') || h.includes('Percentage') || h.includes('Mark')) classColWidths.push({ wch: 15 });
         else classColWidths.push({ wch: 20 });
@@ -139,10 +176,10 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
 
   const downloadCombinedCSV = () => {
     if (!groups || groups.length === 0) return;
-    const sampleItem = groups.find(g => g.items && g.items.length > 0)?.items[0];
-    if (!sampleItem) return;
-    const baseHeaders = Object.keys(sampleItem).filter(k => !k.startsWith('_'));
-    const headers = ["Group Name", "Group Description", ...baseHeaders];
+    const activeHeaders = getActiveHeaders();
+    if (activeHeaders.length === 0) return;
+
+    const headers = ["Group Name", "Group Description", ...activeHeaders];
     let csvContent = "";
     if (reportTitle) {
       csvContent += `"${reportTitle.replace(/"/g, '""')}"\n\n`;
@@ -153,7 +190,7 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
         const row = [
           `"${group.name.replace(/"/g, '""')}"`,
           `"${(group.description || '').replace(/"/g, '""')}"`,
-          ...baseHeaders.map(h => {
+          ...activeHeaders.map(h => {
             const val = formatValue(item[h]);
             return typeof val === 'string' && (val.includes(',') || val.includes('"'))
               ? `"${val.replace(/"/g, '""')}"`
@@ -175,10 +212,13 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
   };
 
   const downloadSeparateCSVs = () => {
+    const activeHeaders = getActiveHeaders();
+    if (activeHeaders.length === 0) return;
+
     groups.forEach((group, idx) => {
       const items = group.items || [];
       if (items.length === 0) return;
-      const baseHeaders = Object.keys(items[0]).filter(k => !k.startsWith('_'));
+      
       let csvContent = "";
       if (reportTitle) {
         csvContent += `"${reportTitle.replace(/"/g, '""')} - ${group.name}"\n`;
@@ -186,9 +226,9 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
       if (group.description) {
         csvContent += `"${group.description.replace(/"/g, '""')}"\n`;
       }
-      csvContent += '\n' + baseHeaders.join(',') + '\n';
+      csvContent += '\n' + activeHeaders.join(',') + '\n';
       items.forEach(item => {
-        const row = baseHeaders.map(h => {
+        const row = activeHeaders.map(h => {
           const val = formatValue(item[h]);
           return typeof val === 'string' && (val.includes(',') || val.includes('"'))
             ? `"${val.replace(/"/g, '""')}"`
@@ -211,6 +251,9 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
   };
 
   const downloadPDFs = () => {
+    const activeHeaders = getActiveHeaders();
+    if (activeHeaders.length === 0) return;
+
     groups.forEach((group, idx) => {
       const doc = new jsPDF();
       const items = group.items || [];
@@ -224,17 +267,16 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
         doc.text(group.description, 14, 22);
       }
       
-      const headers = Object.keys(items[0]).filter(k => !k.startsWith('_'));
-      const rows = items.map(item => headers.map(h => formatValue(item[h]) !== undefined ? String(formatValue(item[h])) : ""));
+      const rows = items.map(item => activeHeaders.map(h => formatValue(item[h]) !== undefined ? String(formatValue(item[h])) : ""));
 
       const columnStyles = {};
-      const nameIdx = headers.findIndex(h => h === 'Student Name');
+      const nameIdx = activeHeaders.findIndex(h => h === 'Student Name');
       if (nameIdx !== -1) {
         columnStyles[nameIdx] = { cellWidth: 50 }; // Give Student Name column more space
       }
 
       doc.autoTable({
-        head: [headers],
+        head: [activeHeaders],
         body: rows,
         startY: group.description ? 30 : 25,
         styles: { fontSize: 8 },
@@ -251,6 +293,8 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
 
   const downloadDOCX = async () => {
     if (!groups || groups.length === 0) return;
+    const activeHeaders = getActiveHeaders();
+    if (activeHeaders.length === 0) return;
     
     const children = [];
     
@@ -267,18 +311,16 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
         children.push(new Paragraph({ text: group.description, spacing: { after: 200 } }));
       }
 
-      const headers = Object.keys(items[0]).filter(k => !k.startsWith('_'));
-      
       const tableRows = [
         new TableRow({
-          children: headers.map(h => new TableCell({ children: [new Paragraph({ text: h, style: "Strong" })], shading: { fill: "D9D9D9" } })),
+          children: activeHeaders.map(h => new TableCell({ children: [new Paragraph({ text: h, style: "Strong" })], shading: { fill: "D9D9D9" } })),
         })
       ];
 
       items.forEach(item => {
         tableRows.push(
           new TableRow({
-            children: headers.map(h => new TableCell({ children: [new Paragraph(String(formatValue(item[h]) !== undefined ? formatValue(item[h]) : ""))] })),
+            children: activeHeaders.map(h => new TableCell({ children: [new Paragraph(String(formatValue(item[h]) !== undefined ? formatValue(item[h]) : ""))] })),
           })
         );
       });
@@ -311,68 +353,148 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
 
   const handlePrint = () => { onClose(); window.print(); };
 
+  const hasSelectedColumns = getActiveHeaders().length > 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fadeIn">
-      <div className="relative w-full max-w-lg rounded-md bg-slate-900 border border-slate-700 p-6 sm:p-8 space-y-5">
-        <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
+      <div className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-md bg-slate-900 border border-slate-700 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-800 shrink-0">
           <div>
-            <h3 className="text-base font-semibold text-white">Export Academic Placement</h3>
-            <p className="text-xs text-slate-400">Generate the final customized workbook</p>
+            <h3 className="text-lg font-semibold text-white">Export Cohort Results</h3>
+            <p className="text-xs text-slate-400 mt-1">Select columns and choose your export format.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-standard">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           
-          <button onClick={downloadExcelWorkbook} className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group">
-            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><DocumentArrowDownIcon className="w-4 h-4" /></div>
-            <div>
-              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Master Excel Workbook (.xlsx)</h4>
-              <p className="text-xs text-slate-400 mt-0.5 leading-normal">Generates a fully formatted multi-sheet Excel workbook exactly matching the requested format.</p>
+          {/* Column Selection Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                <TableCellsIcon className="w-4 h-4 text-brand-primary" />
+                Select Columns to Export
+              </h4>
+              <div className="flex items-center gap-3 text-xs">
+                <button onClick={selectAll} className="text-cyan-400 hover:text-cyan-300">Select All</button>
+                <span className="text-slate-600">|</span>
+                <button onClick={deselectAll} className="text-slate-400 hover:text-slate-300">Clear</button>
+              </div>
             </div>
-          </button>
+            
+            <div className="flex flex-wrap gap-2 bg-slate-800/30 p-3 rounded-md border border-slate-800/50">
+              {availableColumns.map(col => {
+                const isSelected = selectedColumns[col];
+                return (
+                  <button
+                    key={col}
+                    onClick={() => toggleColumn(col)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-standard ${
+                      isSelected 
+                        ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary' 
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    {isSelected && <CheckIcon className="w-3 h-3" />}
+                    {col}
+                  </button>
+                );
+              })}
+              {availableColumns.length === 0 && (
+                <span className="text-xs text-slate-500 py-1">No columns available</span>
+              )}
+            </div>
+          </div>
 
-          <button onClick={downloadDOCX} className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group">
-            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><DocumentIcon className="w-4 h-4" /></div>
-            <div>
-              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Master Word Document (.docx)</h4>
-              <p className="text-xs text-slate-400 mt-0.5 leading-normal">Generates a single Microsoft Word document with tables for each cohort.</p>
-            </div>
-          </button>
+          <div className="h-px w-full bg-slate-800/60" />
 
-          <button onClick={downloadPDFs} className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group">
-            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><DocumentTextIcon className="w-4 h-4" /></div>
-            <div>
-              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Separate PDF Rosters (.pdf)</h4>
-              <p className="text-xs text-slate-400 mt-0.5 leading-normal">Generates individual beautifully styled PDF files for each class.</p>
-            </div>
-          </button>
+          {/* Formats Section */}
+          <div className="space-y-3">
+             <h4 className="text-sm font-medium text-white mb-2">Export Formats</h4>
+             
+             {!hasSelectedColumns && (
+               <div className="p-3 mb-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+                 Please select at least one column to enable exports.
+               </div>
+             )}
 
-          <button onClick={downloadCombinedCSV} className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group">
-            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><TableCellsIcon className="w-4 h-4" /></div>
-            <div>
-              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Unified CSV Data File (.csv)</h4>
-              <p className="text-xs text-slate-400 mt-0.5 leading-normal">A generic CSV dump of all data with an added Group Name column.</p>
-            </div>
-          </button>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button 
+                  onClick={downloadExcelWorkbook} 
+                  disabled={!hasSelectedColumns}
+                  className="w-full p-3.5 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard text-left flex gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <div className="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0"><DocumentArrowDownIcon className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white group-hover:text-emerald-400 transition-standard">Master Excel (.xlsx)</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Multi-sheet workbook with summary.</p>
+                  </div>
+                </button>
 
-          <button onClick={downloadSeparateCSVs} className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group">
-            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><DocumentTextIcon className="w-4 h-4" /></div>
-            <div>
-              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Separate Cohort Files (.csv)</h4>
-              <p className="text-xs text-slate-400 mt-0.5 leading-normal">Generates individual CSV files for each class for easy emailing.</p>
-            </div>
-          </button>
+                <button 
+                  onClick={downloadDOCX} 
+                  disabled={!hasSelectedColumns}
+                  className="w-full p-3.5 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard text-left flex gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <div className="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-blue-400 shrink-0"><DocumentIcon className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white group-hover:text-blue-400 transition-standard">Master Word (.docx)</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Single document with tables.</p>
+                  </div>
+                </button>
 
-          <button onClick={handlePrint} className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group">
-            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><PrinterIcon className="w-4 h-4" /></div>
-            <div>
-              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Browser Print Window</h4>
-              <p className="text-xs text-slate-400 mt-0.5 leading-normal">Opens the browser print dialog to print directly to a physical printer.</p>
-            </div>
-          </button>
+                <button 
+                  onClick={downloadPDFs} 
+                  disabled={!hasSelectedColumns}
+                  className="w-full p-3.5 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard text-left flex gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <div className="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-red-400 shrink-0"><DocumentTextIcon className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white group-hover:text-red-400 transition-standard">Separate PDFs (.pdf)</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Individual styled PDF per class.</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={downloadSeparateCSVs} 
+                  disabled={!hasSelectedColumns}
+                  className="w-full p-3.5 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard text-left flex gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <div className="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><DocumentTextIcon className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Separate CSVs (.csv)</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Individual CSV per class.</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={downloadCombinedCSV} 
+                  disabled={!hasSelectedColumns}
+                  className="w-full p-3.5 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard text-left flex gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <div className="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0"><TableCellsIcon className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">Unified CSV (.csv)</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Generic dump of all data.</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={handlePrint} 
+                  className="w-full p-3.5 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard text-left flex gap-3 group"
+                >
+                  <div className="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0"><PrinterIcon className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white group-hover:text-slate-300 transition-standard">Browser Print</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Standard browser print dialog.</p>
+                  </div>
+                </button>
+             </div>
+          </div>
 
         </div>
       </div>

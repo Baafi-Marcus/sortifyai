@@ -122,7 +122,87 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
     onClose();
   };
 
-  const downloadSeparateCSVs = () => { /* Kept intact but optional */ onClose(); };
+  const downloadCombinedCSV = () => {
+    if (!groups || groups.length === 0) return;
+
+    const sampleItem = groups.find(g => g.items && g.items.length > 0)?.items[0];
+    if (!sampleItem) return;
+
+    const baseHeaders = Object.keys(sampleItem).filter(k => !k.startsWith('_'));
+    const headers = ["Group Name", "Group Description", ...baseHeaders];
+
+    let csvContent = "";
+    if (reportTitle) {
+      csvContent += `"${reportTitle.replace(/"/g, '""')}"\n\n`;
+    }
+    csvContent += headers.join(',') + '\n';
+
+    groups.forEach(group => {
+      (group.items || []).forEach(item => {
+        const row = [
+          `"${group.name.replace(/"/g, '""')}"`,
+          `"${(group.description || '').replace(/"/g, '""')}"`,
+          ...baseHeaders.map(h => {
+            const val = item[h];
+            return typeof val === 'string' && (val.includes(',') || val.includes('"'))
+              ? `"${val.replace(/"/g, '""')}"`
+              : (val !== undefined && val !== null ? val : "");
+          })
+        ];
+        csvContent += row.join(',') + '\n';
+      });
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}_All_Groups_Combined.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    onClose();
+  };
+
+  const downloadSeparateCSVs = () => {
+    groups.forEach((group, idx) => {
+      const items = group.items || [];
+      if (items.length === 0) return;
+
+      const baseHeaders = Object.keys(items[0]).filter(k => !k.startsWith('_'));
+      let csvContent = "";
+      if (reportTitle) {
+        csvContent += `"${reportTitle.replace(/"/g, '""')} - ${group.name}"\n`;
+      }
+      if (group.description) {
+        csvContent += `"${group.description.replace(/"/g, '""')}"\n`;
+      }
+      csvContent += '\n' + baseHeaders.join(',') + '\n';
+
+      items.forEach(item => {
+        const row = baseHeaders.map(h => {
+          const val = item[h];
+          return typeof val === 'string' && (val.includes(',') || val.includes('"'))
+            ? `"${val.replace(/"/g, '""')}"`
+            : (val !== undefined && val !== null ? val : "");
+        });
+        csvContent += row.join(',') + '\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${group.name.replace(/\s+/g, '_')}.csv`;
+      document.body.appendChild(link);
+      setTimeout(() => {
+        link.click();
+        document.body.removeChild(link);
+      }, idx * 200);
+    });
+    onClose();
+  };
+
   const handlePrint = () => { onClose(); window.print(); };
 
   return (
@@ -138,7 +218,8 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
           </button>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {/* Format 1: Multi-Sheet Excel */}
           <button
             onClick={downloadExcelWorkbook}
             className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
@@ -155,6 +236,61 @@ const ExportModal = ({ isOpen, onClose, groups = [], filename = "SortifyAI_Place
               </p>
             </div>
           </button>
+
+          {/* Format 2: Combined CSV */}
+          <button
+            onClick={downloadCombinedCSV}
+            className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
+          >
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
+              <TableCellsIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">
+                Unified CSV Data File (.csv)
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5 leading-normal">
+                A generic CSV dump of all data with an added Group Name column for importing into other databases.
+              </p>
+            </div>
+          </button>
+
+          {/* Format 3: Separate CSVs */}
+          <button
+            onClick={downloadSeparateCSVs}
+            className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
+          >
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
+              <DocumentTextIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">
+                Separate Cohort Files (.csv)
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5 leading-normal">
+                Generates individual CSV files for each class for easy emailing or separate handling.
+              </p>
+            </div>
+          </button>
+
+          {/* Format 4: Print */}
+          <button
+            onClick={handlePrint}
+            className="w-full p-4 rounded-md bg-slate-800/40 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-standard hover-subtle text-left flex items-start gap-3.5 group"
+          >
+            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-primary shrink-0">
+              <PrinterIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-standard">
+                Print/PDF Notice Board Rosters
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5 leading-normal">
+                Opens the browser print dialog. Tip: Change printer destination to "Save as PDF" to generate PDF files!
+              </p>
+            </div>
+          </button>
+
         </div>
       </div>
     </div>

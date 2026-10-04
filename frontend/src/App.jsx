@@ -134,20 +134,22 @@ const App = () => {
           if (grpRes.data?.groupings && grpRes.data.groupings.length > 0) {
             const latest = grpRes.data.groupings[0];
             setGroups(latest.groups || []);
+            if (latest.report_title) setReportTitle(latest.report_title);
             setDecisionSummary({
               primary: "Previous AI Grouping",
               secondary: `${latest.groups?.length || 0} Cohorts`,
               group_count: latest.groups?.length || 0
             });
+            setCurrentView('results');
           } else {
             setGroups([]);
             setDecisionSummary(null);
+            setCurrentView('chat');
           }
         } catch {
           setGroups([]);
+          setCurrentView('chat');
         }
-
-        setCurrentView('chat');
       }
     } catch (err) {
       console.warn("Could not load preview, using basic file metadata:", err);
@@ -349,6 +351,7 @@ const App = () => {
 
                 <div className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">
                   <ResultsStudio
+                    reportTitle={reportTitle}
                     groups={groups}
                     decisionSummary={decisionSummary}
                     onRefineWithAI={handleRefineWithAI}

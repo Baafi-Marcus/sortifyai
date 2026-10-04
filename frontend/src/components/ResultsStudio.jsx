@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const ResultsStudio = ({ 
+  reportTitle,
   groups: initialGroups, 
   decisionSummary, 
   onRefineWithAI, 
@@ -136,7 +137,7 @@ const ResultsStudio = ({
         <div>
           <div className="flex items-center gap-2.5">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <h2 className="text-xl font-semibold text-white">Cohort Allocation Generated</h2>
+            <h2 className="text-xl font-semibold text-white">{reportTitle || "Cohort Allocation Workspace"}</h2>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
               Version {historyIndex + 1}
             </span>

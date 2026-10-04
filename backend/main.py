@@ -27,7 +27,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import bcrypt
 
 from data_engine import DataExtractor
-from ai_engine import AIGroupingAgent
+from ai_engine import AIGroupingAgent, safe_exec_pandas
 from optimization_engine import OptimizationEngine
 from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project, TesterRequest, AIConfig
 from whatsapp_service import send_feedback_notification
@@ -447,7 +447,26 @@ async def group_data(
         
         # Apply rules to ALL rows in the dataset
         if isinstance(data, pd.DataFrame):
-            groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
+            pandas_code = rules.get("pandas_code")
+            if pandas_code:
+                data = safe_exec_pandas(data, pandas_code)
+                
+            opt = rules.get("optimization")
+            if opt and opt.get("use_optimization"):
+                engine = OptimizationEngine()
+                num_groups = opt.get("num_groups", 5)
+                balance_columns = opt.get("balance_columns", [])
+                records = data.fillna("").to_dict('records')
+                
+                res = engine.allocate_balanced_groups(records, num_groups=num_groups, balance_columns=balance_columns)
+                groups_with_data = res.get("groups", [])
+                
+                custom_names = opt.get("group_names", [])
+                if custom_names and len(custom_names) == len(groups_with_data):
+                    for i, g in enumerate(groups_with_data):
+                        g["name"] = custom_names[i]
+            else:
+                groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
         else:
             groups_with_data = rules.get("groups", [])
         
@@ -748,7 +767,29 @@ async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail=f"AI grouping failed: {error_msg}")
 
         if isinstance(data, pd.DataFrame):
-            groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
+            # 1. Execute Pandas Data Engineering Code
+            pandas_code = rules.get("pandas_code")
+            if pandas_code:
+                data = safe_exec_pandas(data, pandas_code)
+                
+            # 2. Check for Optimization/Balancing
+            opt = rules.get("optimization")
+            if opt and opt.get("use_optimization"):
+                engine = OptimizationEngine()
+                num_groups = opt.get("num_groups", 5)
+                balance_columns = opt.get("balance_columns", [])
+                records = data.fillna("").to_dict('records')
+                
+                res = engine.allocate_balanced_groups(records, num_groups=num_groups, balance_columns=balance_columns)
+                groups_with_data = res.get("groups", [])
+                
+                # Apply custom names if provided
+                custom_names = opt.get("group_names", [])
+                if custom_names and len(custom_names) == len(groups_with_data):
+                    for i, g in enumerate(groups_with_data):
+                        g["name"] = custom_names[i]
+            else:
+                groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
         else:
             groups_with_data = rules.get("groups", [])
 

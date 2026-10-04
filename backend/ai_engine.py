@@ -3,9 +3,44 @@ import openai
 import pandas as pd
 import json
 from typing import List, Dict, Any, Union, Optional
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
+
+def safe_exec_pandas(df: pd.DataFrame, code: str) -> pd.DataFrame:
+    """
+    Executes AI-generated pandas code safely in a restricted environment.
+    """
+    if not code or not code.strip():
+        return df
+
+    # Remove markdown code blocks if present
+    code = re.sub(r'^```python\n|```$', '', code.strip(), flags=re.MULTILINE).strip()
+    
+    restricted_globals = {
+        "__builtins__": {
+            "range": range, "len": len, "float": float, "int": int,
+            "str": str, "list": list, "dict": dict, "set": set,
+            "abs": abs, "min": min, "max": max, "sum": sum, "round": round,
+            "bool": bool
+        },
+        "pd": pd,
+        "df": df
+    }
+    
+    forbidden = ["import ", "exec", "eval", "open(", "__", "os.", "sys."]
+    for word in forbidden:
+        if word in code:
+            raise ValueError(f"Dangerous operation detected: {word}")
+
+    try:
+        exec(code, restricted_globals, {})
+    except Exception as e:
+        print(f"Failed to execute pandas code: {e}")
+        pass
+    
+    return df
 
 class AIGroupingAgent:
     def __init__(self):
@@ -274,34 +309,38 @@ Formatting Guidelines:
         Returns a JSON string with rules, not actual data.
         """
         system_prompt = """
-        You are an AI data analyst. Analyze user instructions and return GROUPING RULES in JSON.
+        You are an AI data engineer. Analyze user instructions and return an action plan in JSON.
+        If the user asks to compute formulas, normalize data, handle missing values, or create new columns, 
+        write valid Python (pandas) code in the `pandas_code` field assuming a dataframe named `df`.
+        If the user asks to balance, evenly distribute, or snake-draft into a specific number of groups based on a score, 
+        use the `optimization` field instead of manual rules.
         
         JSON STRUCTURE:
         {
-            "report_title": "A highly descriptive, context-aware title for the final exported spreadsheet based on what the user wants",
+            "report_title": "Descriptive Title for Export",
+            "pandas_code": "df['Overall Score'] = (df['English'] + df['Math'])/2\ndf['Math'].fillna(0, inplace=True)",
+            "optimization": {
+                "use_optimization": true,
+                "num_groups": 5,
+                "balance_columns": ["Overall Score"],
+                "group_names": ["Class A", "Class B"] 
+            },
             "groups": [
                 {
                     "name": "Group Name",
-                    "description": "Brief description",
+                    "description": "Used only if optimization is false",
                     "rules": { "col_name": {"operator": value} },
-                    "is_catchall": false,
-                    "min_capacity": null,
-                    "max_capacity": null
+                    "is_catchall": false
                 }
             ],
-            "explanation": "Reasoning"
+            "explanation": "What you did"
         }
         
         RULES:
-        - Operators: ">=", ">", "<=", "<", "==", "!="
-        - Example: {"Math": {">=": 50}}
-        - Catch-all: "is_catchall": true (no rules)
-        - Capacity: Set "min_capacity"/"max_capacity" if specified.
-        
-        CRITICAL:
-        1. Cover ALL rows.
-        2. Last group should be catch-all.
-        3. Return ONLY valid JSON rules.
+        - `pandas_code`: MUST be valid python for a pandas DataFrame `df`. Can be multiline or empty string. DO NOT use import.
+        - `optimization`: Set `use_optimization: true` if the user wants strictly equal group sizes balanced by a numeric metric.
+        - `groups`: Legacy fallback. Only required if `use_optimization` is false.
+        - Operators for groups: ">=", ">", "<=", "<", "==", "!="
         """
 
         user_message = f"""

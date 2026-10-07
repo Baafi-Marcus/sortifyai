@@ -163,7 +163,7 @@ const LandingPage = ({
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-medium backdrop-blur-md"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Algorithmic Cohort Balancing Engine v2.0</span>
+            <span>Algorithmic Cohort Balancing Engine</span>
           </motion.div>
 
           <motion.h1 

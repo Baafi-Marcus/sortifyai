@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, MeshTransmissionMaterial, Float } from '@react-three/drei';
+import { Environment, Float } from '@react-three/drei';
 
 const GlassShape = ({ position, rotation, scale, type }) => {
   const mesh = useRef();
@@ -13,22 +13,18 @@ const GlassShape = ({ position, rotation, scale, type }) => {
   return (
     <Float speed={2} rotationIntensity={1.5} floatIntensity={2} position={position}>
       <mesh ref={mesh} rotation={rotation} scale={scale}>
-        {type === 'torus' && <torusGeometry args={[1, 0.4, 32, 64]} />}
+        {type === 'torus' && <torusGeometry args={[1, 0.4, 16, 32]} />}
         {type === 'icosahedron' && <icosahedronGeometry args={[1, 0]} />}
-        {type === 'sphere' && <sphereGeometry args={[1, 64, 64]} />}
+        {type === 'sphere' && <sphereGeometry args={[1, 32, 32]} />}
         {type === 'octahedron' && <octahedronGeometry args={[1, 0]} />}
         
-        {/* Advanced Glass/Chrome Material */}
-        <MeshTransmissionMaterial 
-          backside
-          samples={4} 
-          thickness={1.5}
+        {/* Fast Physical Glass Material */}
+        <meshPhysicalMaterial 
+          transmission={1}
+          transparent
           roughness={0.15}
-          chromaticAberration={0.1}
-          anisotropy={0.3}
-          distortion={0.2}
-          distortionScale={0.5}
-          temporalDistortion={0.1}
+          thickness={1.5}
+          ior={1.5}
           clearcoat={1}
           clearcoatRoughness={0.1}
           attenuationDistance={1}

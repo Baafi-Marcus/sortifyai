@@ -111,23 +111,23 @@ const LandingPage = ({
               )}
 
               {currentUser ? (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <button
                     onClick={onOpenSavedProjects}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-all"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs sm:text-sm font-medium hover:bg-cyan-500/20 transition-all"
                   >
-                    <FolderOpen className="w-4 h-4" />
+                    <FolderOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Projects</span>
                   </button>
                   <button
                     onClick={onLogout}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-sm transition-all border border-slate-700/50"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm transition-all border border-slate-700/50"
                     title="Sign Out"
                   >
                     {currentUser.avatar_url ? (
-                      <img src={currentUser.avatar_url} alt={currentUser.name} className="w-5 h-5 rounded-full object-cover ring-2 ring-slate-700" />
+                      <img src={currentUser.avatar_url} alt={currentUser.name} className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover ring-2 ring-slate-700" />
                     ) : (
-                      <UserCircle className="w-5 h-5 text-slate-400" />
+                      <UserCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
                     )}
                     <span className="hidden sm:inline font-medium">{currentUser.name.split(' ')[0]}</span>
                   </button>
@@ -135,16 +135,16 @@ const LandingPage = ({
               ) : (
                 <button
                   onClick={onOpenAuth}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-700 text-sm font-medium text-slate-200 hover:text-white transition-all backdrop-blur-sm"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-slate-700/80 bg-slate-800/50 hover:bg-slate-700 text-xs sm:text-sm font-medium text-slate-200 hover:text-white transition-all backdrop-blur-sm"
                 >
-                  <UserCircle className="w-4 h-4" />
-                  <span>Sign In</span>
+                  <UserCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Sign In</span>
                 </button>
               )}
 
               <button 
                 onClick={onGetStarted} 
-                className="px-5 py-2 text-sm font-semibold text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]"
+                className="px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-semibold text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]"
               >
                 Upload Roster
               </button>
@@ -170,7 +170,7 @@ const LandingPage = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-4xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tight leading-[1.1]"
+            className="text-3xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tight leading-[1.1]"
           >
             Balanced student groups <br/> from any roster, instantly.
           </motion.h1>
@@ -179,7 +179,7 @@ const LandingPage = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed"
+            className="text-sm sm:text-base lg:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed"
           >
             Upload an Excel, CSV, or PDF roster. Define target group count, gender balance, and academic performance constraints. Generate verified balanced cohorts in under 2 seconds.
           </motion.p>
@@ -210,15 +210,15 @@ const LandingPage = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 0.6 }}
-            className="pt-12 max-w-2xl mx-auto"
+            className="pt-10 max-w-2xl mx-auto"
           >
-            <div className="p-4 rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-800/80 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-medium text-slate-400 shadow-2xl">
+            <div className="p-3 sm:p-4 rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-800/80 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-medium text-slate-400 shadow-2xl">
               <span className="font-semibold text-slate-200">System Benchmark:</span>
-              <span className="flex items-center gap-2"><Users className="w-4 h-4 text-slate-500"/> 500 records</span>
+              <span className="flex items-center gap-1 sm:gap-2"><Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500"/> 500 records</span>
               <span className="text-slate-600">→</span>
               <span className="text-cyan-400 font-mono">10 cohorts in 1.4s</span>
               <span className="text-slate-600">→</span>
-              <span className="text-emerald-400 font-mono bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+              <span className="text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md border border-emerald-500/20">
                 99.8% balance parity
               </span>
             </div>
@@ -226,10 +226,10 @@ const LandingPage = ({
         </div>
 
         {/* Feature Bento Grid */}
-        <div className="mt-32">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-white mb-4">Engineered for Precision</h2>
-            <p className="text-slate-400">Advanced features to handle complex cohort configurations.</p>
+        <div className="mt-24 sm:mt-32">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4">Engineered for Precision</h2>
+            <p className="text-sm sm:text-base text-slate-400">Advanced features to handle complex cohort configurations.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <FeatureCard 
@@ -252,12 +252,12 @@ const LandingPage = ({
         </div>
 
         {/* Use Cases */}
-        <div className="mt-32 space-y-12">
+        <div className="mt-24 sm:mt-32 space-y-8 sm:space-y-12">
           <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-3xl font-bold text-white mb-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4">
               Built for Every Domain
             </h2>
-            <p className="text-slate-400 text-base leading-relaxed">
+            <p className="text-slate-400 text-sm sm:text-base leading-relaxed px-4">
               SortifyAI provides a constraint-based allocation engine configured to distribute participants and resources across educational and institutional operations.
             </p>
           </div>
@@ -303,20 +303,20 @@ const LandingPage = ({
         </div>
 
         {/* Security Notice & CTA */}
-        <div className="mt-32 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-slate-900/50 backdrop-blur-sm border border-slate-800/80 shadow-lg mb-12">
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            <span className="text-sm text-slate-300">
+        <div className="mt-24 sm:mt-32 text-center">
+          <div className="inline-flex items-center gap-3 px-4 py-2 sm:px-6 sm:py-3 rounded-xl bg-slate-900/50 backdrop-blur-sm border border-slate-800/80 shadow-lg mb-10 sm:mb-12">
+            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+            <span className="text-xs sm:text-sm text-slate-300">
               <strong className="text-white">Private and Secure:</strong> Student records are processed in isolated sessions and never used to train public models.
             </span>
           </div>
 
-          <div className="p-12 rounded-3xl bg-gradient-to-b from-cyan-900/20 to-slate-900/50 border border-cyan-500/20 backdrop-blur-lg relative overflow-hidden">
+          <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-b from-cyan-900/20 to-slate-900/50 border border-cyan-500/20 backdrop-blur-lg relative overflow-hidden mx-2 sm:mx-0">
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
-            <h2 className="text-3xl font-bold text-white mb-6 relative z-10">Ready to balance your next cohort?</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-5 sm:mb-6 relative z-10">Ready to balance your next cohort?</h2>
             <button
               onClick={onGetStarted}
-              className="relative z-10 px-8 py-4 bg-white text-slate-950 font-bold text-base rounded-xl hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 mx-auto"
+              className="relative z-10 px-6 sm:px-8 py-3 sm:py-4 bg-white text-slate-950 font-bold text-sm sm:text-base rounded-xl hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 mx-auto w-full sm:w-auto"
             >
               <span>Launch App Now</span>
               <ArrowRight className="w-5 h-5" />

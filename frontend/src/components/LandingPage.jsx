@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MeteorsBackground } from './ui/MeteorsBackground';
+import { GlassGeometryBackground } from './ui/GlassGeometryBackground';
 import { 
   ArrowRight, 
   Users, 
@@ -72,7 +72,7 @@ const LandingPage = ({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500/30 relative overflow-x-hidden">
       {/* 3D Background */}
-      <MeteorsBackground />
+      <GlassGeometryBackground />
 
       {/* Ambient Gradient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none" />

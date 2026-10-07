@@ -74,8 +74,11 @@ const LandingPage = ({
       {/* 3D Background */}
       <GlassGeometryBackground />
 
-      {/* Ambient Gradient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none" />
+      {/* Dark Contrast Overlay for readability */}
+      <div className="fixed inset-0 bg-slate-950/30 pointer-events-none z-[1]" />
+
+      {/* Ambient Gradient Glow (Moved to relative so it sits properly) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-cyan-900/20 blur-[120px] rounded-full pointer-events-none z-[1]" />
 
       {/* Navigation */}
       <motion.nav 
@@ -170,7 +173,7 @@ const LandingPage = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-3xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tight leading-[1.1]"
+            className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.1] drop-shadow-[0_0_20px_rgba(0,0,0,0.8)]"
           >
             Balanced student groups <br/> from any roster, instantly.
           </motion.h1>
@@ -179,7 +182,7 @@ const LandingPage = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="text-sm sm:text-base lg:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed"
+            className="text-sm sm:text-base lg:text-lg text-slate-200 font-medium max-w-2xl mx-auto leading-relaxed drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]"
           >
             Upload an Excel, CSV, or PDF roster. Define target group count, gender balance, and academic performance constraints. Generate verified balanced cohorts in under 2 seconds.
           </motion.p>

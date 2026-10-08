@@ -103,6 +103,10 @@ const ChatInterface = ({
     return keywords.some(k => p.includes(k));
   };
 
+  const markPlanAsResolved = (msgId) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, action_taken: true } : m));
+  };
+
   // Submit message to /chat or /interpret
   const handleSendMessage = async (e, forcedInstruction = null, planJson = null) => {
     if (e) e.preventDefault();
@@ -330,11 +334,14 @@ const ChatInterface = ({
                 )}
 
                 {/* Inline Grouping Plan Card (if this turn is a plan requiring confirmation) */}
-                {msg.is_grouping_plan && (
+                {msg.is_grouping_plan && !msg.action_taken && (
                   <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       <button
-                        onClick={() => handleSendMessage(null, msg.original_instruction, msg.plan_json)}
+                        onClick={() => {
+                          markPlanAsResolved(msg.id);
+                          handleSendMessage(null, msg.original_instruction, msg.plan_json);
+                        }}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-standard shadow-sm"
                       >
@@ -343,6 +350,7 @@ const ChatInterface = ({
                       </button>
                       <button
                         onClick={() => {
+                          markPlanAsResolved(msg.id);
                           setInput(msg.original_instruction + ' ');
                           if (textareaRef.current) {
                             textareaRef.current.focus();
@@ -359,6 +367,7 @@ const ChatInterface = ({
                       </button>
                       <button
                         onClick={() => {
+                          markPlanAsResolved(msg.id);
                           setMessages(prev => [
                             ...prev, 
                             { id: `u-cancel-${Date.now()}`, role: 'user', content: 'Cancel' }, 

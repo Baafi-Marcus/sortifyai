@@ -76,6 +76,7 @@ os.makedirs("uploads", exist_ok=True)
 class GroupingRequest(BaseModel):
     file_id: str
     instructions: str
+    plan_json: Optional[str] = None
 
 class InterpretRequest(BaseModel):
     file_id: str
@@ -424,16 +425,19 @@ async def group_data(
         data = data_extractor.load_data(db_file.file_path)
         data_summary = db_file.data_summary
         
-        # Get grouping RULES from AI
-        grouping_rules_json = ai_agent.interpret_instructions(data_summary, request.instructions)
-        
-        # Parse JSON
-        json_match = re.search(r'```json\n(.*?)\n```', grouping_rules_json, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(1)
+        # Get grouping RULES from AI or use provided plan
+        if request.plan_json:
+            json_str = request.plan_json
         else:
-            json_str = grouping_rules_json
+            grouping_rules_json = ai_agent.interpret_instructions(data_summary, request.instructions)
             
+            # Parse JSON
+            json_match = re.search(r'```json\n(.*?)\n```', grouping_rules_json, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                json_str = grouping_rules_json
+                
         rules = json.loads(json_str)
         
         # Check if the AI returned an error
@@ -603,46 +607,61 @@ async def interpret_request(
     if not db_file:
         raise HTTPException(status_code=404, detail="File not found")
         
-    instr = request.instructions.lower()
-    
-    # Extract group count
-    group_count_match = re.search(r'(\d+)\s*(?:groups?|teams?|houses?|clusters?)', instr)
-    group_count = int(group_count_match.group(1)) if group_count_match else 10
-    total_records = db_file.total_rows or 100
-    avg_per_grp = max(1, total_records // group_count)
-    
-    # Interpret bullet points
-    summary_points = [
-        f"{group_count} groups with similar group sizes (~{avg_per_grp} students each)"
-    ]
-    
-    if any(k in instr for k in ['gender', 'sex', 'male', 'female', 'boy', 'girl', 'balance']):
-        summary_points.append("Balance gender ratio evenly across all groups")
-    if any(k in instr for k in ['prog', 'programme', 'course', 'track', 'subject', 'mix', 'different']):
-        summary_points.append("Mix students from different programmes into each group")
-    if any(k in instr for k in ['score', 'performance', 'academic', 'mark', 'high', 'low', 'similar']):
-        summary_points.append("Distribute academic performance bands evenly")
-    if any(k in instr for k in ['together', 'keep', 'pair']):
-        summary_points.append("Keep designated student pairs together")
-    if any(k in instr for k in ['separate', 'apart', 'different group']):
-        summary_points.append("Ensure designated students are placed into separate groups")
+    try:
+        data_summary = db_file.data_summary
+        # Actually ask the AI to generate the plan
+        grouping_rules_json = ai_agent.interpret_instructions(data_summary, request.instructions)
         
-    if len(summary_points) == 1:
-        summary_points.append("Balanced and diverse allocation across all detected attributes")
-
-    decision_summary = {
-        "primary": "Academic score" if any(k in instr for k in ["score", "academic", "mark"]) else "Balanced Headcount",
-        "secondary": "Programme diversity" if any(k in instr for k in ["prog", "programme", "course"]) else "Random Distribution",
-        "balance": "Gender (50/50)" if any(k in instr for k in ["gender", "sex"]) else "Equal Group Size",
-        "group_count": group_count
-    }
-    
-    return {
-        "interpreted_as": summary_points,
-        "criteria": decision_summary,
-        "group_count": group_count,
-        "ready": True
-    }
+        # Parse JSON
+        json_match = re.search(r'```json\n(.*?)\n```', grouping_rules_json, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            json_str = grouping_rules_json
+            
+        rules = json.loads(json_str)
+        
+        # Build summary points
+        summary_points = []
+        if rules.get("explanation"):
+            summary_points.append(rules["explanation"])
+            
+        opt = rules.get("optimization")
+        group_count = 10
+        if opt and opt.get("use_optimization"):
+            group_count = opt.get("num_groups", 10)
+            summary_points.append(f"Create {group_count} optimized cohorts.")
+            if opt.get("balance_columns"):
+                summary_points.append(f"Balance evenly by: {', '.join(opt['balance_columns'])}")
+            if opt.get("affinity_biases"):
+                summary_points.append("Apply specific matching biases and logic.")
+        else:
+            summary_points.append("Use manual assignment rules.")
+            if rules.get("groups"):
+                group_count = len(rules["groups"])
+                summary_points.append(f"Create {group_count} logical groups.")
+                
+        decision_summary = {
+            "primary": rules.get("report_title", "Custom Grouping"),
+            "group_count": group_count
+        }
+        
+        return {
+            "interpreted_as": summary_points,
+            "criteria": decision_summary,
+            "group_count": group_count,
+            "plan_json": json_str,
+            "ready": True
+        }
+    except Exception as e:
+        print("Interpretation error:", e)
+        # Fallback
+        return {
+            "interpreted_as": [f"Attempting to interpret: {request.instructions}"],
+            "criteria": {"primary": "Custom", "group_count": 0},
+            "group_count": 0,
+            "ready": True
+        }
 
 @app.post("/check-groups")
 async def check_existing_groups(

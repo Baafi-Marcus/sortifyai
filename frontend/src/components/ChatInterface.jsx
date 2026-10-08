@@ -104,7 +104,7 @@ const ChatInterface = ({
   };
 
   // Submit message to /chat or /interpret
-  const handleSendMessage = async (e, forcedInstruction = null) => {
+  const handleSendMessage = async (e, forcedInstruction = null, planJson = null) => {
     if (e) e.preventDefault();
     const trimmed = forcedInstruction || input.trim();
     if (!trimmed || loading || !file?.file_id) return;
@@ -140,14 +140,15 @@ const ChatInterface = ({
                    data.interpreted_as.map(p => `• ${p}`).join('\n') +
                    '\n\nWould you like me to proceed with this grouping?',
           is_grouping_plan: true,
-          original_instruction: trimmed
+          original_instruction: trimmed,
+          plan_json: data.plan_json
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
         // Regular chat or executing confirmed grouping
         const endpoint = forcedInstruction ? '/group' : '/chat';
         const payload = forcedInstruction 
-          ? { file_id: file.file_id, instructions: trimmed }
+          ? { file_id: file.file_id, instructions: trimmed, plan_json: planJson }
           : { file_id: file.file_id, message: trimmed };
           
         const res = await axios.post(`${apiUrl}${endpoint}`, payload);
@@ -333,7 +334,7 @@ const ChatInterface = ({
                   <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       <button
-                        onClick={() => handleSendMessage(null, msg.original_instruction)}
+                        onClick={() => handleSendMessage(null, msg.original_instruction, msg.plan_json)}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-standard shadow-sm"
                       >

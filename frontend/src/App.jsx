@@ -332,17 +332,19 @@ const App = () => {
 
           {/* 2. Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-950">
-            {/* If file is active and view is 'chat': Render Chatbot Interface */}
-            {fileData && currentView === 'chat' && (
-              <ChatInterface
-                file={fileData}
-                onViewResults={() => setCurrentView('results')}
-                onExportGroups={() => setShowExportModal(true)}
-                onGroupsUpdated={handleGroupsUpdated}
-                onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-                sidebarOpen={sidebarOpen}
-                onInspectFile={() => setShowInspectModal(true)}
-              />
+            {/* Chatbot Interface (Kept mounted to preserve state/chat history, just hidden via CSS when switching views) */}
+            {fileData && currentView !== 'upload' && (
+              <div className={currentView === 'chat' ? "flex-1 flex flex-col h-full min-h-0" : "hidden"}>
+                <ChatInterface
+                  file={fileData}
+                  onViewResults={() => setCurrentView('results')}
+                  onExportGroups={() => setShowExportModal(true)}
+                  onGroupsUpdated={handleGroupsUpdated}
+                  onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+                  sidebarOpen={sidebarOpen}
+                  onInspectFile={() => setShowInspectModal(true)}
+                />
+              </div>
             )}
 
             {/* If file is active and view is 'results': Render Results Studio */}

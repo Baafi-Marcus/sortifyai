@@ -351,7 +351,9 @@ Formatting Guidelines:
         - `pandas_code`: MUST be valid python for a pandas DataFrame `df`. Can be multiline or empty string. DO NOT use import.
         - `optimization`: Set `use_optimization: true` if the user wants strictly equal group sizes balanced by a single numeric metric.
         - `affinity_biases`: Use this inside `optimization` if the user wants to prioritize specific subsets (like highest Math) into specific groups (e.g. Group 0), while still perfectly balancing overall scores and exact group sizes. Keys are string indices of the group (e.g. "0", "1").
-        - `Assigned_Group` Backdoor: If the user requests highly complex logic that cannot be solved by `optimization` and `affinity_biases`, write custom Python code in `pandas_code` that directly creates a new column `df['Assigned_Group']` containing the assigned group name for every row. Set `use_optimization: false`.
+        - `Categorical Grouping` (Crucial): If the user explicitly asks to group by a specific column (e.g. "Group by Programme", "Group by Gender") or categorically without balancing, you MUST set `use_optimization: false`. Write custom Python code in `pandas_code` that assigns that column directly to `df['Assigned_Group']` (e.g. `df['Assigned_Group'] = df['Programme']`).
+        - `Filtering/Excluding`: If the user explicitly asks to exclude or remove certain records (e.g., "Exclude General Arts"), filter the dataframe in `pandas_code` (e.g., `df = df[df['Programme'] != 'General Arts']`).
+        - `Assigned_Group` Backdoor: Use `df['Assigned_Group']` for any highly complex logic that cannot be solved by `optimization` and `affinity_biases`. Set `use_optimization: false`.
         - `groups`: Fallback. Only required if `use_optimization` is false and no `Assigned_Group` is made.
         - Operators for groups: ">=", ">", "<=", "<", "==", "!="
         """

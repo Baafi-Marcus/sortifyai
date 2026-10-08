@@ -73,7 +73,7 @@ const App = () => {
       try {
         const savedFile = JSON.parse(savedFileStr);
         if (savedFile && savedFile.file_id) {
-          handleSelectFileFromSidebar(savedFile);
+          handleSelectFileFromSidebar(savedFile, true);
         }
       } catch (err) {
         console.warn("Failed to parse saved active file", err);
@@ -130,7 +130,7 @@ const App = () => {
   };
 
   // Handler: When user clicks a chat/file from Sidebar
-  const handleSelectFileFromSidebar = async (fileSummary) => {
+  const handleSelectFileFromSidebar = async (fileSummary, isAutoRestore = false) => {
     localStorage.setItem('sortifyai_active_file', JSON.stringify(fileSummary));
     try {
       const res = await axios.get(`${apiUrl}/files/${fileSummary.file_id}/preview`);
@@ -169,10 +169,12 @@ const App = () => {
       }
     } catch (err) {
       console.warn("Could not load file session:", err);
-      if (err.response && err.response.status === 404) {
-        alert("This file is no longer available on the server (it may have been cleared during a system update). Please re-upload your file.");
-      } else {
-        alert("There was a problem loading this file. Please try again or re-upload.");
+      if (!isAutoRestore) {
+        if (err.response && err.response.status === 404) {
+          alert("This file is no longer available on the server (it may have been cleared during a system update). Please re-upload your file.");
+        } else {
+          alert("There was a problem loading this file. Please try again or re-upload.");
+        }
       }
       handleNewChat();
     }

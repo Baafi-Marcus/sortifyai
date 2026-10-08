@@ -97,58 +97,88 @@ const ChatInterface = ({
     }
   };
 
-  // Submit message to /chat
-  const handleSendMessage = async (e) => {
+  const isGroupingRequest = (prompt) => {
+    const p = prompt.toLowerCase();
+    const keywords = ["group", "divide", "allocate", "split", "cohort", "house", "teams", "cluster", "categorize", "sort into", "make groups", "create groups", "partition", "distribute"];
+    return keywords.some(k => p.includes(k));
+  };
+
+  // Submit message to /chat or /interpret
+  const handleSendMessage = async (e, forcedInstruction = null) => {
     if (e) e.preventDefault();
-    const trimmed = input.trim();
+    const trimmed = forcedInstruction || input.trim();
     if (!trimmed || loading || !file?.file_id) return;
 
-    const userMessage = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      content: trimmed
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+    if (!forcedInstruction) {
+      const userMessage = {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        content: trimmed
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInput('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
     }
+    
     setLoading(true);
 
     try {
-      const res = await axios.post(`${apiUrl}/chat`, {
-        file_id: file.file_id,
-        message: trimmed
-      });
-
-      const data = res.data;
-      if (data?.status === 'success') {
+      if (isGroupingRequest(trimmed) && !forcedInstruction) {
+        // Step 1: Interpret instruction and ask for confirmation
+        const res = await axios.post(`${apiUrl}/interpret`, {
+          file_id: file.file_id,
+          instructions: trimmed
+        });
+        
+        const data = res.data;
         const assistantMessage = {
           id: `a-${Date.now()}`,
           role: 'assistant',
-          content: data.reply || 'Here is what I found in your file:',
-          is_grouping: data.is_grouping,
-          groups: data.groups,
-          total_rows: data.total_rows,
-          grouped_rows: data.grouped_rows
+          content: 'I understand you want to organize the students. Here is my plan:\n\n' +
+                   data.interpreted_as.map(p => `• ${p}`).join('\n') +
+                   '\n\nWould you like me to proceed with this grouping?',
+          is_grouping_plan: true,
+          original_instruction: trimmed
         };
-
         setMessages((prev) => [...prev, assistantMessage]);
-
-        // If groups were created, sync with parent application
-        if (data.is_grouping && data.groups && onGroupsUpdated) {
-          onGroupsUpdated(data.groups, trimmed, data.report_title);
-        }
       } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `err-${Date.now()}`,
+        // Regular chat or executing confirmed grouping
+        const endpoint = forcedInstruction ? '/group' : '/chat';
+        const payload = forcedInstruction 
+          ? { file_id: file.file_id, instructions: trimmed }
+          : { file_id: file.file_id, message: trimmed };
+          
+        const res = await axios.post(`${apiUrl}${endpoint}`, payload);
+        const data = res.data;
+        
+        if (data?.status === 'success' || data?.groups) {
+          const assistantMessage = {
+            id: `a-${Date.now()}`,
             role: 'assistant',
-            content: `⚠️ ${data?.detail || 'Could not process your request. Please try again.'}`
+            content: data.reply || data.explanation || 'Groups successfully generated.',
+            is_grouping: (data.is_grouping || !!data.groups),
+            groups: data.groups,
+            total_rows: data.total_rows,
+            grouped_rows: data.grouped_rows
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+          
+          // If groups were created, sync with parent application
+          if ((data.is_grouping || data.groups) && data.groups && data.groups.length > 0 && onGroupsUpdated) {
+            onGroupsUpdated(data.groups, trimmed, data.report_title);
           }
-        ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              role: 'assistant',
+              content: `⚠️ ${data?.detail || 'Could not process your request. Please try again.'}`
+            }
+          ]);
+        }
       }
     } catch (err) {
       console.error('Chat error:', err);
@@ -294,6 +324,51 @@ const ChatInterface = ({
                           <span>Export Groups</span>
                         </button>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline Grouping Plan Card (if this turn is a plan requiring confirmation) */}
+                {msg.is_grouping_plan && (
+                  <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        onClick={() => handleSendMessage(null, msg.original_instruction)}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-standard shadow-sm"
+                      >
+                        <CheckCircleIcon className="w-4 h-4" />
+                        <span>Yes, proceed</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setInput(msg.original_instruction + ' ');
+                          if (textareaRef.current) {
+                            textareaRef.current.focus();
+                          }
+                          setMessages(prev => [
+                            ...prev, 
+                            { id: `u-refine-${Date.now()}`, role: 'user', content: 'Actually, let me refine that.' }
+                          ]);
+                        }}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition-standard"
+                      >
+                        <span>No, I meant...</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMessages(prev => [
+                            ...prev, 
+                            { id: `u-cancel-${Date.now()}`, role: 'user', content: 'Cancel' }, 
+                            { id: `a-cancel-${Date.now()}`, role: 'assistant', content: 'Grouping action cancelled.' }
+                          ]);
+                        }}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-transparent text-slate-400 hover:text-slate-300 text-xs font-medium transition-standard"
+                      >
+                        <span>Cancel</span>
+                      </button>
                     </div>
                   </div>
                 )}

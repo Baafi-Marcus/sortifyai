@@ -406,8 +406,8 @@ async def group_data(
 ):
     # Get file from database
     db_file = db.query(DBFile).filter(DBFile.file_id == request.file_id).first()
-    if not db_file:
-        raise HTTPException(status_code=404, detail="File not found")
+    if not db_file or not os.path.exists(db_file.file_path):
+        raise HTTPException(status_code=404, detail="File session expired. Please re-upload your file.")
         
     # Check if processing is complete
     if not db_file.processed:
@@ -604,8 +604,8 @@ async def interpret_request(
     Shows the user what the AI understood before generating groups.
     """
     db_file = db.query(DBFile).filter(DBFile.file_id == request.file_id).first()
-    if not db_file:
-        raise HTTPException(status_code=404, detail="File not found")
+    if not db_file or not os.path.exists(db_file.file_path):
+        raise HTTPException(status_code=404, detail="File session expired. Please re-upload your file.")
         
     try:
         data_summary = db_file.data_summary
@@ -787,8 +787,8 @@ def is_grouping_request(prompt: str) -> bool:
 async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
     """Conversational endpoint: answers questions about the file or executes grouping instructions."""
     db_file = db.query(DBFile).filter(DBFile.file_id == req.file_id).first()
-    if not db_file:
-        raise HTTPException(status_code=404, detail="File session not found.")
+    if not db_file or not os.path.exists(db_file.file_path):
+        raise HTTPException(status_code=404, detail="File session expired. Please re-upload your file.")
 
     try:
         data = data_extractor.load_data(db_file.file_path)

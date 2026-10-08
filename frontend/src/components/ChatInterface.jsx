@@ -187,6 +187,11 @@ const ChatInterface = ({
       }
     } catch (err) {
       console.error('Chat error:', err);
+      if (err.response?.status === 404) {
+        localStorage.removeItem('sortifyai_active_file');
+        window.location.reload();
+        return;
+      }
       const errMsg = err.response?.data?.detail || err.message || 'An error occurred while communicating with SortifyAI.';
       setMessages((prev) => [
         ...prev,

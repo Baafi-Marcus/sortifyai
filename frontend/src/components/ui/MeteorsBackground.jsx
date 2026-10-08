@@ -20,7 +20,7 @@ export const MeteorsBackground = ({ count = 30 }) => {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-[0]">
       {/* Texture for depth */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+      <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay"></div>
       
       {meteors.map((meteor) => (
         <motion.div

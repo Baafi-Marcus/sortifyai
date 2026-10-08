@@ -315,7 +315,7 @@ const LandingPage = ({
           </div>
 
           <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-b from-cyan-900/20 to-slate-900/50 border border-cyan-500/20 backdrop-blur-lg relative overflow-hidden mx-2 sm:mx-0">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+            <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay"></div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-5 sm:mb-6 relative z-10">Ready to balance your next cohort?</h2>
             <button
               onClick={onGetStarted}

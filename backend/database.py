@@ -162,6 +162,8 @@ class Project(Base):
     total_students = Column(Integer, default=0)
     groups_count = Column(Integer, default=0)
     groups_json = Column(Text, nullable=False)
+    file_b64 = Column(Text, nullable=True)
+    chat_history_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     
@@ -177,6 +179,17 @@ class TesterRequest(Base):
     status = Column(String, default="pending")  # pending, added
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class AITrainingLog(Base):
+    __tablename__ = "ai_training_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_prompt = Column(Text, nullable=False)
+    data_summary = Column(Text, nullable=False)
+    ai_rules_output = Column(Text, nullable=False)
+    resulting_groups_json = Column(Text, nullable=True)
+    rating = Column(Integer, nullable=True) # 1-5 for RLHF (Reinforcement Learning from Human Feedback)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Create tables and run safe migrations
 def init_db():
     from sqlalchemy import text
@@ -188,9 +201,24 @@ def init_db():
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR;"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR;"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'user';"))
+            conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS file_b64 TEXT;"))
+            conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS chat_history_json TEXT;"))
+            
+            # Create AI training log table if it doesn't exist
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS ai_training_logs (
+                    id SERIAL PRIMARY KEY,
+                    user_prompt TEXT NOT NULL,
+                    data_summary TEXT NOT NULL,
+                    ai_rules_output TEXT NOT NULL,
+                    resulting_groups_json TEXT,
+                    rating INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
             conn.commit()
         except Exception as e:
-            print("Note on user columns migration:", e)
+            print("Note on column migrations:", e)
             
     # Seed default AI configs if not present
     db = SessionLocal()

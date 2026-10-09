@@ -258,6 +258,7 @@ const App = () => {
     try {
       const res = await axios.post(`${apiUrl}/projects/save`, {
         title: projectTitle,
+        file_id: fileData?.file_id || null,
         filename: fileData?.filename || 'manual_entry',
         total_students: fileData?.total_rows || currentGroups.reduce((a, b) => a + (b.items?.length || 0), 0),
         groups_count: currentGroups.length,
@@ -265,7 +266,7 @@ const App = () => {
       }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      alert(res.data?.message || 'Project saved successfully to your Neon PostgreSQL cloud database!');
+      alert(res.data?.message || 'Project and Chat History saved successfully to your cloud database!');
     } catch (err) {
       console.error('Save to cloud failed:', err);
       alert('Could not save project to cloud.');
@@ -275,11 +276,25 @@ const App = () => {
   // Handler: Load Saved Project
   const handleLoadProject = (project) => {
     setGroups(project.groups || []);
-    setFileData({
-      filename: project.filename || project.title,
-      total_rows: project.total_students,
-      columns: []
-    });
+    
+    if (project.restored_file_id) {
+      const restoredData = {
+        file_id: project.restored_file_id,
+        filename: project.filename || project.title,
+        total_rows: project.total_students,
+        columns: []
+      };
+      setFileData(restoredData);
+      localStorage.setItem('sortifyai_active_file', JSON.stringify(restoredData));
+      setSidebarRefresh((prev) => prev + 1);
+    } else {
+      setFileData({
+        filename: project.filename || project.title,
+        total_rows: project.total_students,
+        columns: []
+      });
+    }
+    
     setDecisionSummary({
       primary: "Restored from Neon Cloud Database",
       secondary: `${project.groups_count} cohorts`,

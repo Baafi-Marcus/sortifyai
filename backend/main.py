@@ -30,7 +30,7 @@ import bcrypt
 from data_engine import DataExtractor
 from ai_engine import AIGroupingAgent, safe_exec_pandas
 from optimization_engine import OptimizationEngine
-from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project, TesterRequest, AIConfig
+from database import init_db, get_db, SessionLocal, File as DBFile, ChatHistory, Grouping, Feedback, APIKey, APIUsageLog, User, Project, TesterRequest, AIConfig, AITrainingLog
 from whatsapp_service import send_feedback_notification
 
 security = HTTPBearer(auto_error=False)
@@ -152,6 +152,7 @@ class ChatMessageRequest(BaseModel):
 
 class SaveProjectRequest(BaseModel):
     title: str
+    file_id: Optional[str] = None
     filename: Optional[str] = None
     total_students: Optional[int] = 0
     groups_count: Optional[int] = 0
@@ -550,6 +551,16 @@ async def group_data(
             grouped_rows=grouped_count
         )
         db.add(grouping)
+        
+        # Save Training Log for Continuous ML Improvements
+        training_log = AITrainingLog(
+            user_prompt=request.instructions,
+            data_summary=data_summary,
+            ai_rules_output=json_str,
+            resulting_groups_json=json.dumps(groups_with_data)
+        )
+        db.add(training_log)
+        
         db.commit()
         
         # Attach analytics to each group
@@ -960,6 +971,16 @@ async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
             grouped_rows=grouped_count
         )
         db.add(grouping)
+        
+        # Save Training Log for Continuous ML Improvements
+        training_log = AITrainingLog(
+            user_prompt=user_msg,
+            data_summary=db_file.data_summary,
+            ai_rules_output=json_str,
+            resulting_groups_json=json.dumps(groups_with_data)
+        )
+        db.add(training_log)
+        
         db.commit()
 
         for group in groups_with_data:
@@ -1685,13 +1706,36 @@ async def save_project(
     if not user:
         raise HTTPException(status_code=401, detail="Please sign in with Google to save projects.")
 
+    file_b64 = None
+    chat_history_json = None
+    
+    if req.file_id:
+        import base64
+        db_file = db.query(DBFile).filter(DBFile.file_id == req.file_id).first()
+        if db_file and os.path.exists(db_file.file_path):
+            try:
+                with open(db_file.file_path, "rb") as f:
+                    file_b64 = base64.b64encode(f.read()).decode('utf-8')
+            except Exception as e:
+                print(f"Warning: Could not read file for project save: {e}")
+                
+            chats = db.query(ChatHistory).filter(ChatHistory.file_id == req.file_id).order_by(ChatHistory.timestamp.asc()).all()
+            if chats:
+                chat_list = [
+                    {"user_message": c.user_message, "ai_response": c.ai_response, "timestamp": c.timestamp.isoformat()}
+                    for c in chats
+                ]
+                chat_history_json = json.dumps(chat_list)
+
     new_project = Project(
         user_id=user.id,
         title=req.title,
         filename=req.filename,
         total_students=req.total_students or 0,
         groups_count=req.groups_count or len(req.groups_data),
-        groups_json=json.dumps(req.groups_data)
+        groups_json=json.dumps(req.groups_data),
+        file_b64=file_b64,
+        chat_history_json=chat_history_json
     )
     db.add(new_project)
     db.commit()
@@ -1748,6 +1792,57 @@ async def get_project_details(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
 
+    restored_file_id = None
+    if project.file_b64:
+        try:
+            import base64
+            import uuid
+            
+            new_file_id = str(uuid.uuid4())
+            ext = os.path.splitext(project.filename)[1] if project.filename else ".xlsx"
+            new_path = f"uploads/{new_file_id}{ext}"
+            os.makedirs("uploads", exist_ok=True)
+            
+            with open(new_path, "wb") as f:
+                f.write(base64.b64decode(project.file_b64))
+                
+            data = data_extractor.load_data(new_path)
+            data_summary = ai_agent.analyze_structure(data)
+            
+            new_db_file = DBFile(
+                file_id=new_file_id,
+                filename=project.filename or "Restored_Project_Data",
+                file_path=new_path,
+                total_rows=project.total_students,
+                data_summary=data_summary,
+                processed=True
+            )
+            db.add(new_db_file)
+            
+            if project.chat_history_json:
+                chats = json.loads(project.chat_history_json)
+                for c in chats:
+                    dt = datetime.utcnow()
+                    if c.get("timestamp"):
+                        try:
+                            dt = datetime.fromisoformat(c.get("timestamp"))
+                        except ValueError:
+                            pass
+                            
+                    new_chat = ChatHistory(
+                        file_id=new_file_id,
+                        user_message=c.get("user_message"),
+                        ai_response=c.get("ai_response"),
+                        timestamp=dt
+                    )
+                    db.add(new_chat)
+                    
+            db.commit()
+            restored_file_id = new_file_id
+        except Exception as e:
+            print(f"Error reconstructing cloud file: {e}")
+            db.rollback()
+
     return {
         "id": project.id,
         "title": project.title,
@@ -1755,7 +1850,8 @@ async def get_project_details(
         "total_students": project.total_students,
         "groups_count": project.groups_count,
         "groups": json.loads(project.groups_json),
-        "created_at": project.created_at.isoformat()
+        "created_at": project.created_at.isoformat(),
+        "restored_file_id": restored_file_id
     }
 
 @app.delete("/projects/{project_id}", summary="Delete a Saved Project")

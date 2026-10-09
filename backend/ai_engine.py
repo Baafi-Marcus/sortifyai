@@ -301,10 +301,25 @@ Formatting Guidelines:
                 sample_df[col] = sample_df[col].apply(
                     lambda x: (str(x)[:100] + '...') if isinstance(x, str) and len(str(x)) > 100 else x
                 )
+                
+            # Extract unique values for low-cardinality categorical columns to help AI map exact terms
+            categorical_summary = []
+            for col in data.columns:
+                if data[col].nunique() < 30:  # Allow up to 30 unique categories
+                    unique_vals = data[col].dropna().unique().tolist()
+                    # Truncate to save context window if there are many long strings
+                    clean_vals = [str(x)[:50] for x in unique_vals[:15]]
+                    if len(unique_vals) > 15:
+                        clean_vals.append("...")
+                    categorical_summary.append(f"  - {col}: {clean_vals}")
+            
+            cat_str = "\n".join(categorical_summary)
+            if cat_str:
+                cat_str = f"\nUNIQUE CATEGORICAL VALUES:\n{cat_str}"
             
             sample = sample_df.to_string()
             total_rows = len(data)
-            return f"ROWS: {total_rows}\nCOLS: {dtypes}\nSAMPLE (3 rows):\n{sample}"
+            return f"ROWS: {total_rows}\nCOLS: {dtypes}{cat_str}\nSAMPLE (3 rows):\n{sample}"
         else:
             # For text data (PDF)
             return f"Text Data Sample: {data[:500]}..."
@@ -353,7 +368,7 @@ Formatting Guidelines:
         - `optimization`: Set `use_optimization: true` if the user wants strictly equal group sizes balanced by a single numeric metric.
         - `affinity_biases`: Use this inside `optimization` if the user wants to prioritize specific subsets (like highest Math) into specific groups (e.g. Group 0), while still perfectly balancing overall scores and exact group sizes. Keys are string indices of the group (e.g. "0", "1").
         - `Categorical Grouping` (Crucial): If the user explicitly asks to group by a specific column (e.g. "Group by Programme", "Group by Gender") or categorically without balancing, you MUST set `use_optimization: false`. Write custom Python code in `pandas_code` that assigns that column directly to `df['Assigned_Group']` (e.g. `df['Assigned_Group'] = df['Exact Column Name']`).
-        - `Filtering/Excluding`: If the user explicitly asks to exclude or remove certain records (e.g., "Exclude General Arts"), filter the dataframe in `pandas_code` (e.g., `df = df[df['Exact Column Name'] != 'General Arts']`).
+        - `Filtering/Excluding`: If the user explicitly asks to exclude or remove certain records (e.g., "Exclude General Arts"), filter the dataframe in `pandas_code`. CRITICAL: You MUST map the user's term to the EXACT string value found in the "UNIQUE CATEGORICAL VALUES" list in the data summary below. (e.g., if user says 'General Arts' but the summary shows 'GEN ARTS', you must use `df = df[df['Column'] != 'GEN ARTS']`).
         - `Assigned_Group` Backdoor: Use `df['Assigned_Group']` for any highly complex logic that cannot be solved by `optimization` and `affinity_biases`. Set `use_optimization: false`.
         - `groups`: Fallback. Only required if `use_optimization` is false and no `Assigned_Group` is made.
         - Operators for groups: ">=", ">", "<=", "<", "==", "!="

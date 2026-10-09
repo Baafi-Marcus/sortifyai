@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const AuthModal = ({ isOpen, onClose, onLoginSuccess }) => {
-  const [activeTab, setActiveTab] = useState('register'); // 'register' | 'login'
+  const [activeTab, setActiveTab] = useState('login'); // 'register' | 'login'
   
   // Registration form state
   const [regUsername, setRegUsername] = useState('');

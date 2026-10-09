@@ -44,7 +44,7 @@ def safe_exec_pandas(df: pd.DataFrame, code: str) -> pd.DataFrame:
             return restricted_globals['df']
     except Exception as e:
         print(f"Failed to execute pandas code: {e}")
-        pass
+        raise ValueError(f"AI Pandas Execution Error: {str(e)}")
     
     return df
 

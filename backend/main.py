@@ -504,6 +504,9 @@ async def group_data(
                     groups_with_data = ai_agent.apply_rules_to_data(data, json_str)
         else:
             groups_with_data = rules.get("groups", [])
+            
+        if not groups_with_data:
+            raise ValueError("AI execution finished, but 0 groups were created. Please verify your prompt and dataset column names.")
         
         # Count total rows
         total_rows = db_file.total_rows

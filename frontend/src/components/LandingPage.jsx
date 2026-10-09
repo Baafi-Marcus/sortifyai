@@ -197,15 +197,25 @@ const LandingPage = ({
               onClick={onGetStarted}
               className="w-full sm:w-auto px-8 py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-base rounded-xl transition-all shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] flex items-center justify-center gap-2 group"
             >
-              <span>Get Started Free</span>
+              <span>{currentUser ? "Upload Roster (New Project)" : "Get Started Free"}</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
-            <button
-              onClick={onOpenAuth}
-              className="w-full sm:w-auto px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-white font-semibold text-base rounded-xl transition-all border border-slate-700/50 backdrop-blur-md"
-            >
-              Login to Account
-            </button>
+            {!currentUser ? (
+              <button
+                onClick={onOpenAuth}
+                className="w-full sm:w-auto px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-white font-semibold text-base rounded-xl transition-all border border-slate-700/50 backdrop-blur-md"
+              >
+                Login to Account
+              </button>
+            ) : (
+              <button
+                onClick={onOpenSavedProjects}
+                className="w-full sm:w-auto px-8 py-4 bg-slate-800/80 hover:bg-slate-700 text-white font-semibold text-base rounded-xl transition-all border border-slate-700/50 backdrop-blur-md flex items-center justify-center gap-2"
+              >
+                <FolderOpen className="w-5 h-5" />
+                <span>Open Saved Projects</span>
+              </button>
+            )}
           </motion.div>
 
           {/* Benchmark Bar */}

@@ -16,6 +16,7 @@ import uuid
 import pandas as pd
 import json
 import re
+import difflib
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 
@@ -453,7 +454,24 @@ async def group_data(
         if isinstance(data, pd.DataFrame):
             pandas_code = rules.get("pandas_code")
             if pandas_code:
-                data = safe_exec_pandas(data, pandas_code)
+                try:
+                    data = safe_exec_pandas(data, pandas_code)
+                except ValueError as ve:
+                    err_str = str(ve)
+                    if "KeyError" in err_str or "Key Error" in err_str:
+                        missing_col = None
+                        match = re.search(r"'(.*?)'", err_str)
+                        if match:
+                            missing_col = match.group(1)
+                        if missing_col and isinstance(data, pd.DataFrame):
+                            actual_cols = [str(c) for c in data.columns]
+                            closest = difflib.get_close_matches(missing_col, actual_cols, n=1, cutoff=0.1)
+                            if closest:
+                                suggestion = f"The AI tried to use a column named '{missing_col}', but it wasn't found in your file. Did you mean '{closest[0]}'?"
+                            else:
+                                suggestion = f"The AI tried to use a column named '{missing_col}', but it wasn't found. Available columns are: {', '.join(actual_cols)}."
+                            raise HTTPException(status_code=400, detail=suggestion)
+                    raise HTTPException(status_code=400, detail=f"AI Code Error: {err_str}")
                 
             opt = rules.get("optimization")
             if opt and opt.get("use_optimization"):
@@ -623,6 +641,34 @@ async def interpret_request(
             json_str = grouping_rules_json
             
         rules = json.loads(json_str)
+        
+        # Dry-run pandas code to catch column name errors early
+        pandas_code = rules.get("pandas_code")
+        if pandas_code:
+            try:
+                test_data = data_extractor.load_data(db_file.file_path)
+                if isinstance(test_data, pd.DataFrame):
+                    safe_exec_pandas(test_data, pandas_code)
+            except ValueError as ve:
+                err_str = str(ve)
+                if "KeyError" in err_str or "Key Error" in err_str:
+                    missing_col = None
+                    match = re.search(r"'(.*?)'", err_str)
+                    if match:
+                        missing_col = match.group(1)
+                    
+                    if missing_col and isinstance(test_data, pd.DataFrame):
+                        actual_cols = [str(c) for c in test_data.columns]
+                        closest = difflib.get_close_matches(missing_col, actual_cols, n=1, cutoff=0.1)
+                        if closest:
+                            suggestion = f"The AI tried to use a column named '{missing_col}', but it wasn't found in your file. Did you mean '{closest[0]}'?"
+                        else:
+                            suggestion = f"The AI tried to use a column named '{missing_col}', but it wasn't found. Available columns are: {', '.join(actual_cols)}."
+                        
+                        raise HTTPException(status_code=400, detail=suggestion)
+                
+                # Re-raise standard error
+                raise HTTPException(status_code=400, detail=f"AI Code Error: {err_str}")
         
         # Build summary points
         summary_points = []
@@ -823,7 +869,24 @@ async def chat_endpoint(req: ChatMessageRequest, db: Session = Depends(get_db)):
             # 1. Execute Pandas Data Engineering Code
             pandas_code = rules.get("pandas_code")
             if pandas_code:
-                data = safe_exec_pandas(data, pandas_code)
+                try:
+                    data = safe_exec_pandas(data, pandas_code)
+                except ValueError as ve:
+                    err_str = str(ve)
+                    if "KeyError" in err_str or "Key Error" in err_str:
+                        missing_col = None
+                        match = re.search(r"'(.*?)'", err_str)
+                        if match:
+                            missing_col = match.group(1)
+                        if missing_col and isinstance(data, pd.DataFrame):
+                            actual_cols = [str(c) for c in data.columns]
+                            closest = difflib.get_close_matches(missing_col, actual_cols, n=1, cutoff=0.1)
+                            if closest:
+                                suggestion = f"The AI tried to use a column named '{missing_col}', but it wasn't found in your file. Did you mean '{closest[0]}'?"
+                            else:
+                                suggestion = f"The AI tried to use a column named '{missing_col}', but it wasn't found. Available columns are: {', '.join(actual_cols)}."
+                            raise HTTPException(status_code=400, detail=suggestion)
+                    raise HTTPException(status_code=400, detail=f"AI Code Error: {err_str}")
                 
             # 2. Check for Optimization/Balancing
             opt = rules.get("optimization")

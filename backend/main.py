@@ -785,20 +785,25 @@ async def check_existing_groups(
 
 @app.get("/files")
 async def list_files(db: Session = Depends(get_db)):
-    """List all uploaded files"""
-    files = db.query(DBFile).order_by(DBFile.upload_date.desc()).all()
-    return {
-        "files": [
-            {
+    """List all uploaded files, filtering out ones deleted by ephemeral disk restarts"""
+    all_files = db.query(DBFile).order_by(DBFile.upload_date.desc()).all()
+    
+    valid_files = []
+    for f in all_files:
+        if os.path.exists(f.file_path):
+            valid_files.append({
                 "file_id": f.file_id,
                 "filename": f.filename,
                 "upload_date": f.upload_date.isoformat(),
                 "total_rows": f.total_rows,
                 "processed": f.processed
-            }
-            for f in files
-        ]
-    }
+            })
+        else:
+            # Clean up ghost records from the database
+            db.delete(f)
+            
+    db.commit()
+    return {"files": valid_files}
 
 @app.get("/chat-history/{file_id}")
 async def get_chat_history(file_id: str, db: Session = Depends(get_db)):

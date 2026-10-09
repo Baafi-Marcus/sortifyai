@@ -93,19 +93,40 @@ class DataExtractor:
         Detects which row contains the actual column headers.
         
         Logic:
-        1. Look for a row where most cells are non-numeric strings
-        2. The row after should have mostly numeric/consistent data types
-        3. Skip rows with single merged cells (titles)
+        1. Look for known educational/data column keywords (Instant Lock).
+        2. Look for a row where most cells are non-numeric strings.
+        3. The row after should have mostly numeric/consistent data types.
+        4. Skip rows with single merged cells (titles).
         """
+        import re
+        # Broad spectrum of common headers across Education, HR, Business, and Sales
+        header_keywords = re.compile(
+            r'\b(name|gender|index|id|program|programme|course|grade|score|status|class|house|contact|'
+            r'email|phone|address|date|time|department|role|position|salary|manager|employee|staff|'
+            r'product|price|cost|revenue|sales|qty|quantity|amount|total|tax|company|client|customer|'
+            r'city|state|country|zip|region)\b', 
+            re.IGNORECASE
+        )
+        
         for idx in range(min(5, len(df))):  # Check first 5 rows max
             row = df.iloc[idx]
             
             # Skip if row has too many empty cells (likely a title row)
-            non_empty = row.notna().sum()
-            if non_empty <= 1:
+            non_empty = row.notna()
+            if non_empty.sum() <= 1:
                 continue
             
-            # Check if this looks like a header row
+            # 1. Regex Column Sniffing (Instant Lock)
+            keyword_matches = 0
+            for val in row[non_empty]:
+                if isinstance(val, str) and header_keywords.search(str(val)):
+                    keyword_matches += 1
+            
+            # If we find at least 2 distinct header-like keywords, lock this as the header row instantly!
+            if keyword_matches >= 2:
+                return idx
+            
+            # 2. Fallback: Check if this looks like a header row statistically
             if self._is_likely_header(row):
                 # Verify next row has data (not another header)
                 if idx + 1 < len(df):
@@ -153,11 +174,11 @@ class DataExtractor:
         # Data rows often have numbers or varied content
         numeric_count = 0
         for val in row[non_empty]:
-            if isinstance(val, (int, float)) or (isinstance(val, str) and val.replace('.', '').replace('-', '').isdigit()):
+            if isinstance(val, (int, float)) or (isinstance(val, str) and val.strip().replace('.', '').replace('-', '').isdigit()):
                 numeric_count += 1
         
-        # If at least 30% numeric, likely data
-        return numeric_count / non_empty.sum() >= 0.3
+        # If at least 15% numeric, likely data (student lists are highly categorical)
+        return numeric_count / non_empty.sum() >= 0.15
 
     def _extract_text_from_pdf(self, file_path: str) -> List[str]:
         from pypdf import PdfReader
